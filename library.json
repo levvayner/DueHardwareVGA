@@ -1,0 +1,26 @@
+{
+    "name": "DueHardwareVGA",
+    "version": "0.1.0",
+    "description": "Library to use DueHardwareVGA adapter for VGA Graphics",
+    "keywords": "arduino due vga, hardware vga, vga graphics, gaming",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/levvayner/DueHardwareVGA.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Lev Vayner",
+        "email": "",
+        "url": "https://www.vaynersystems.com"
+      }
+    ],
+    "license": "MIT",
+    "homepage": "https://www.vaynersystems.com/",
+    "dependencies": {
+      
+    },
+    "frameworks": "arduino",
+    "platforms": "atmelsam"
+  }

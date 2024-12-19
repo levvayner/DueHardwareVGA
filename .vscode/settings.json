@@ -2,6 +2,7 @@
     "files.associations": {
         "*.erd": "json",
         "*.vuerd": "json",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "type_traits": "cpp"
     }
 }

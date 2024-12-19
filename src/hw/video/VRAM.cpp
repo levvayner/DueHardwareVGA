@@ -6,14 +6,14 @@ VRAMSettings resolution2(320, 300);
 char buf[32];
 void changeResolution(){
     memset(buf, 0, sizeof(buf));
-    if(digitalRead(PIN_RESOLUTION) == HIGH){
+    if(digitalRead(PIN_RESOLUTION) == HIGH && graphics.settings != resolution2){
         graphics.settings = resolution2;
         if(Serial.availableForWrite()){
             sprintf(buf, "Setting resolution to %u x %u", resolution2.screenWidth, resolution2.screenHeight);
             Serial.println(buf);
         }
     }
-    else {
+    else if( graphics.settings != resolution1) {
         graphics.settings = resolution1;
         if(Serial.availableForWrite()){
             sprintf(buf, "Setting resolution to %u x %u", resolution1.screenWidth, resolution1.screenHeight);

@@ -10,6 +10,7 @@ void vgaKeyboardGetInput(){
 
 void VGAKeyboard::begin(long waitForKeyTimeout, bool waitForNewLine)
 {
+    _ps2Input.begin();
     //_serialInput.begin(115220);
     //pmc_enable_periph_clk (TC_INTERFACE_ID + 0*3+0) ;  // clock the TC0 channel 0
     //attachDueInterrupt(20000, vgaKeyboardGetInput, "Keyboard");
@@ -17,15 +18,36 @@ void VGAKeyboard::begin(long waitForKeyTimeout, bool waitForNewLine)
 
 void VGAKeyboard::onTick()
 {
-    // if(!_processing){
-    //     _processing = true;
-        //Serial.println("Processing Serial");
-        _processInput(Serial);
-        //if(_ps2Input.available())
-        Serial.println("Processing PS2");
+  
+        _processInput(Serial);  
         _processInput(_ps2Input);
-    //     _processing = false;
-    // }
+
+        if(_ps2Input.LastKey() != nullptr){
+            auto key = *_ps2Input.LastKey();
+            if(key.isAltPressed){
+                switch (key.keyCode)
+                {
+                case PS2_KEY_D:
+                    Serial.println("Execute Alt + D action");
+                    break;
+                
+                default:
+                    break;
+                }
+            }
+            if(key.isCtrlPressed){
+                switch (key.keyCode)
+                {
+                case PS2_KEY_D:
+                    Serial.println("Execute Ctrl + D action");
+                    break;
+                
+                default:
+                    break;
+                }
+            }
+            _ps2Input.ClearLastKey();
+        }
 
 }
 uint16_t VGAKeyboard::attachDueInterrupt(double microseconds, void (* callback)(), const char *TimerName)

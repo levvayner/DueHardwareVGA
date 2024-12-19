@@ -26,12 +26,18 @@ class VGAKeyboard{
         {
             if(port.available()){
                 char c = port.read();
-                if(c == 10 || c == 13) break;
+                
+                if(c == 10 || c == 13) break; //PS2 keyboard uses record seperator
+
+                
                 lastCharTime = millis();
+                if(c == 0) continue;
+                Serial.print("Adding char "); Serial.println(c);
                 resp += c;
                 
             }
         }
+        Serial.print("Got key input: "); Serial.println(resp.c_str());
         resp.trim();
         return resp;
     } 
@@ -42,7 +48,7 @@ class VGAKeyboard{
         unsigned long startTime = millis();
         while(millis() - startTime < 200 && !port.available());
         //if no data, continue
-        if(!port.available()) return;
+        if(!port.available()) return;        
         String resp = _getResponse(port);
         if(resp.length() == 0) {
             Serial.println("No response ");

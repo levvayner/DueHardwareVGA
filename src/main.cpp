@@ -6,7 +6,6 @@
 #include "sw/commandManager.h"
 VRAM graphics;
 
-
 unsigned long updateFrequency = 1000;
 unsigned long lastUpdated = 0;
 unsigned long checkingTime = 0;
@@ -29,7 +28,7 @@ void setup(){
 void loop(){
     checkingTime = millis();
     if(checkingTime  - lastUpdated >= updateFrequency){
-        Serial.println("Checking");
+        
         keyboard.onTick();
         lastUpdated = checkingTime;
         graphics.clear(0,0,200,10);

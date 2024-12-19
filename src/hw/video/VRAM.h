@@ -83,6 +83,14 @@ struct VRAMSettings{
         this->charHeight = charHeight;
         this->horizontalBits = horizontalBits;
     }
+    bool operator !=(const VRAMSettings& other){
+        return this->charHeight == other.charHeight &&
+            this->charWidth == other.charWidth &&
+            this->horizontalBits == other.horizontalBits &&
+            this->screenWidth == other.screenWidth &&
+            this->screenHeight == other.screenHeight &&
+            this->screenBufferHeight == other.screenBufferHeight;
+    }
 };
 
 

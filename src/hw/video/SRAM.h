@@ -30,9 +30,9 @@ public:
     bool inline Busy(BusyType busyType = btAny){
         return busyType == btVolatile ? false :
             busyType == btVertical ? 
-                !(PIOA->PIO_PDSR & PIO_PA14) : 
+                !(PIOA->PIO_PDSR & PIO_PA15) : 
                 busyType == btHorizontal ?
-                    (PIOA->PIO_PDSR & PIO_PA15) :
+                    (PIOA->PIO_PDSR & PIO_PA14) :
                     !(PIOB->PIO_PDSR & PIO_PB26);
         //return (PIOA->PIO_PDSR & PIO_PA15); //horizontal screen clear, 3.9us
         //return !(PIOD->PIO_PDSR & PIO_PD5); //vertical screen clear, 1.6ms
@@ -47,16 +47,16 @@ public:
 
 	//construct byte from data bits
 	uint8_t ReadByte(uint32_t addr);
-    size_t ReadBytes(uint32_t addr, uint8_t* buffer, uint32_t length);
+    size_t ReadBytes(uint32_t addr, uint8_t* buffer, uint32_t length, BusyType busyType = btAny);
     uint16_t ReadShort(uint32_t addr);
-    size_t ReadBytes(uint32_t addr, uint16_t* buffer, uint32_t length);
+    size_t ReadBytes(uint32_t addr, uint16_t* buffer, uint32_t length, BusyType busyType = btAny);
     size_t ReadString(uint32_t addr, uint8_t* buffer, uint32_t length);
 	
 	// void WriteFirstByte(uint8_t data, uint16_t offsetAddress = 0);
 	// void WriteNextByte(uint8_t data);
 	bool WriteByte(uint32_t addr, uint8_t data, uint8_t retryCount = RETRY_COUNT,BusyType busyType = btAny);
 	bool WriteShort(uint32_t addr, uint16_t data, BusyType busyType = btAny);
-    uint16_t WriteBytes(uint32_t addr, uint8_t* data, uint32_t length, BusyType busyType = btAny);
+    virtual uint16_t WriteBytes(uint32_t addr, uint8_t* data, uint32_t length, BusyType busyType = btAny);
     uint16_t FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, BusyType busyType = btAny);
 
     void Erase(uint32_t startAddress = 0x0, uint32_t length = SRAM_SIZE);

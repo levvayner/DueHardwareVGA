@@ -4,7 +4,7 @@ PS2KeyAdvanced keyboardPs2;
 void ps2KeyboardController::begin()
 {
     // Configure the keyboard library
-    keyboardPs2.begin(PS2_DATA, PS2_CLK);
+    keyboardPs2.begin(PS2_DATA1, PS2_CLK1);
     Serial.print("PS2 keyboard started");
 }
 
@@ -22,7 +22,7 @@ ConsoleKeyPress ps2KeyboardController::getKey()
             Serial.println(_c, HEX);
 
             if((_c &0xFF) == PS2_KEY_ERROR){ //if we encountered an error, reset the keyboard
-                keyboardPs2.begin(PS2_DATA, PS2_CLK);
+                keyboardPs2.begin(PS2_DATA1, PS2_CLK1);
             }
 
             

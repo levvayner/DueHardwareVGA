@@ -222,6 +222,17 @@ uint8_t VRAM::readPixel(int x, int y, BusyType busyType)
     return ReadByte((y << settings.horizontalBits) + x);
 }
 
+void VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, BusyType busyType)
+{
+    for(int line=0;line < height;line++){
+            graphics.ReadBytes(
+                ((line + y) << graphics.settings.horizontalBits) + x,
+                buffer + (line*width), width,
+                busyType
+            );
+        }
+}
+
 bool VRAM::drawLine(int x1, int y1, int x2, int y2, byte color, BusyType busyType)
 {
     //char buf[256];
@@ -316,14 +327,14 @@ bool VRAM::drawRectangle(int x1, int y1, int width, int height, byte color, Busy
     if(settings.screenHeight <y1 + height) clipHeight = settings.screenHeight - y1; 
 
    
-    FillBytes((y1 << settings.horizontalBits) + x1, color, clipWidth, busyType);
+    FillBytes((y1 << settings.horizontalBits) + x1, color, clipWidth);
     
-    FillBytes(((y1 + clipHeight) << settings.horizontalBits) + x1, color, clipWidth, busyType);
+    FillBytes(((y1 + clipHeight) << settings.horizontalBits) + x1, color, clipWidth);
 
     //draw pixeled left and right
     for(uint16_t y=y1; y < y1 + clipHeight; y++){
-        drawPixel(x1,y, color);
-        drawPixel(x1 + clipWidth, y, color);
+        drawPixel(x1,y, color, busyType);
+        drawPixel(x1 + clipWidth, y, color, busyType);
     }
 
     return true;

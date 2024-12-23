@@ -146,6 +146,10 @@ class VRAM : public SRAM{
         virtual bool drawPixel(int x, int y, Color color, BusyType busyType = btAny);
 
         virtual uint8_t readPixel(int x, int y, BusyType busyType = btAny);
+        virtual void readBuffer(int x, int y, int width, int height, uint8_t * buffer, BusyType busyType = btAny);
+        virtual inline void readBuffer(Point location, int width, int height, uint8_t * buffer, BusyType busyType = btAny){
+            readBuffer(location.x, location.y, width, height, buffer, busyType);
+        }
 
         virtual bool drawLine(int x1, int y1, int x2, int y2, byte color = 0xFF, BusyType busyType = btAny);
         virtual bool drawLine (Point start, Point end, byte color, BusyType busyType = btAny);

@@ -3,7 +3,7 @@
 
 #define NOP __asm__ __volatile__ ("nop\n\t")
 #define isascii(c)  ((c & ~0x7F) == 0)
-
+#define BUFFER_STRIDE 32
 
 
 SRAM::SRAM()
@@ -40,12 +40,12 @@ void SRAM::begin()
     PIOB->PIO_ODR = PIO_PB26;
     PIOB->PIO_PUDR = PIO_PB26;
 
-    //enable and set as input, diable pullup D23 , VERTICAL_VISIBLE (active LOW) A14
+    //enable and set as input, diable pullup D23 , HORIZONTAL_VISIBLE (active HIGH) A14
     PIOA->PIO_PER = PIO_PA14;
     PIOA->PIO_ODR = PIO_PA14;
     PIOA->PIO_PUDR = PIO_PA14;
 
-    //enable and set as input, diable pullup D24 , HORIZONTAL_VISIBLE (active HIGH) A15
+    //enable and set as input, diable pullup D24 , VERTICAL_VISIBLE (active LOW) A15
     PIOA->PIO_PER = PIO_PA15;
     PIOA->PIO_ODR = PIO_PA15;
     PIOA->PIO_PUDR = PIO_PA15;
@@ -140,8 +140,9 @@ uint8_t SRAM::ReadByte(uint32_t addr) {
 	return readValue;
 }
 
-size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length)
+size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length, BusyType busyType)
 {
+    while(Busy(busyType));
     DeviceOutput();
     uint32_t endAddr = addr + length;
     uint32_t curAddr = addr;
@@ -160,6 +161,7 @@ size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length)
            
         #endif
         curAddr++;
+        if((curAddr- addr)%BUFFER_STRIDE==0) while(Busy(busyType));
     }
     DeviceOff();
 	return curAddr - addr;
@@ -182,8 +184,9 @@ uint16_t SRAM::ReadShort(uint32_t addr)
 	return readValue;
 }
 
-size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length)
+size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length, BusyType busyType)
 {
+    while(Busy(busyType));
     DeviceOutput();
     uint32_t endAddr = addr + length;
     uint32_t curAddr = addr;
@@ -260,6 +263,7 @@ uint16_t SRAM::WriteBytes(uint32_t addr, uint8_t *data, uint32_t length, BusyTyp
         NOP;
         idx++;
         addr++;   
+        if(idx%BUFFER_STRIDE==0) while(Busy(busyType));
         PIOA->PIO_CODR = PIO_PA29;            
     };
     DeviceOff();	
@@ -298,6 +302,7 @@ uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, Busy
         NOP;
         NOP;
         PIOA->PIO_CODR = PIO_PA29; // D4 WE
+        if(idx%BUFFER_STRIDE==0) while(Busy(busyType));
         idx++;
         addr++; 
               

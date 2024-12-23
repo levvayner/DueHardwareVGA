@@ -1,6 +1,6 @@
 #include "Arduino.h"
 #include "DueHardwareVGA.h"
-PS2Mouse mouse(PS2_CLK,PS2_DATA);
+PS2Mouse mouse(PS2_CLK2,PS2_DATA2);
 Point mouseLocation;
 int zoom = 5;
 
@@ -33,6 +33,7 @@ void loop(){
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom, 127, btVertical);
     }
     if(data.position.x != 0 || data.position.y != 0){
+        //char buf[128];
         //erase
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom,0, btVertical);
         //update
@@ -58,8 +59,6 @@ void loop(){
 
         //draw new
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom,127, btVertical);
-
-        //char buf[128];
         // sprintf(buf, "New location (%d,%d)",mouseLocation.x, mouseLocation.y   );
         // Serial.println(buf);
     }

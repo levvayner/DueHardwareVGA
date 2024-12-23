@@ -40,7 +40,6 @@ void SRAM::begin()
     PIOB->PIO_ODR = PIO_PB26;
     PIOB->PIO_PUDR = PIO_PB26;
 
-    //pinMode(16,INPUT);
     //enable and set as input, diable pullup D23 , VERTICAL_VISIBLE (active LOW) A14
     PIOA->PIO_PER = PIO_PA14;
     PIOA->PIO_ODR = PIO_PA14;
@@ -97,8 +96,7 @@ void SRAM::DeviceOutput() {
     
 	if (ramState == dsOff) {
         #ifdef PIN_CE
-        PIOC->PIO_SODR = PIO_PC28;
-		//digitalWrite(PIN_CE, HIGH); 
+        PIOC->PIO_SODR = PIO_PC28; 
         #endif
 	} //make sure chip is enabled
 	
@@ -120,8 +118,7 @@ void SRAM::DeviceWrite() {
     
 	if (ramState == dsOff) {
         #ifdef PIN_CE
-        PIOC->PIO_SODR = PIO_PC28;        
-		//digitalWrite(PIN_CE, HIGH); 		
+        PIOC->PIO_SODR = PIO_PC28;    		
         #endif
 	} //make sure chip is enabled
 
@@ -133,12 +130,10 @@ uint8_t SRAM::ReadByte(uint32_t addr) {
 	DeviceOutput();
 	SetAddress(addr);
     PIOB->PIO_SODR = PIO_PB25;
-	//digitalWrite(PIN_OE, HIGH);
     //tOE = 35ns, @84Mhz 1 tick is 1.2e-8s or 12ns. 3 clocks will pass at least
     #ifdef USE_PORT_IO
         uint8_t readValue = PINL;
     #else        
-        //PIOC->PIO_ODR |= (0xFF << 1);
         uint8_t readValue =  (PIOC->PIO_PDSR >> 12) & 0xFF;	  
     #endif
     DeviceOff();
@@ -152,7 +147,6 @@ size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length)
     uint32_t curAddr = addr;
     
     PIOB->PIO_SODR = PIO_PB25;
-    //digitalWrite(PIN_OE, HIGH);
     //tOE = 35ns, @84Mhz 1 tick is 1.2e-8s or 12ns. 3 clocks will pass at least
     while(curAddr < endAddr){
         SetAddress(curAddr);
@@ -160,9 +154,7 @@ size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length)
         
         #ifdef USE_PORT_IO
             uint8_t readValue = PINL;
-        #else        
-            
-            //PIOC->PIO_ODR |= (0xFF << 1);
+        #else  
             buffer[curAddr - addr] = (PIOC->PIO_PDSR >> 12) & 0xFF;            
             //Serial.print("Read byte 0x"); Serial.print(val); Serial.print(" at index "); Serial.print(curAddr - addr); Serial.print(" from address 0x");	  Serial.println(curAddr, HEX);
            
@@ -178,7 +170,6 @@ uint16_t SRAM::ReadShort(uint32_t addr)
     DeviceOutput();
 	SetAddress(addr);
     PIOB->PIO_SODR = PIO_PB25;
-	//digitalWrite(PIN_OE, HIGH);
     //tOE = 35ns, @84Mhz 1 tick is 1.2e-8s or 12ns. 3 clocks will pass at least
     #ifdef USE_PORT_IO
         uint8_t readValue = PINL;
@@ -198,7 +189,6 @@ size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length)
     uint32_t curAddr = addr;
     
     PIOB->PIO_SODR = PIO_PB25;
-    //digitalWrite(PIN_OE, HIGH);
     //tOE = 35ns, @84Mhz 1 tick is 1.2e-8s or 12ns. 3 clocks will pass at least
     while(curAddr < endAddr){
         SetAddress(curAddr);
@@ -208,7 +198,6 @@ size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length)
             uint8_t readValue = PINL;
         #else        
             
-            //PIOC->PIO_ODR |= (0xFF << 1);
             buffer[curAddr - addr] = (PIOC->PIO_PDSR >> 12) & 0xFF;            
             buffer[curAddr - addr] |= (PIOB->PIO_PDSR >> 6) & 0xFF00;
             //Serial.print("Read byte 0x"); Serial.print(val); Serial.print(" at index "); Serial.print(curAddr - addr); Serial.print(" from address 0x");	  Serial.println(curAddr, HEX);
@@ -257,6 +246,9 @@ uint16_t SRAM::WriteBytes(uint32_t addr, uint8_t *data, uint32_t length, BusyTyp
     #if defined(DEBUG_SRAM)
     startTime = micros();
     #endif
+
+    __disable_irq();
+
     DeviceWrite();
     uint16_t idx = 0;
     SetAddress(addr);
@@ -268,13 +260,12 @@ uint16_t SRAM::WriteBytes(uint32_t addr, uint8_t *data, uint32_t length, BusyTyp
         NOP;
         idx++;
         addr++;   
-        PIOA->PIO_CODR = PIO_PA29;
-        
-        // digitalWrite(PIN_WE, HIGH);
-        // digitalWrite(PIN_WE, LOW);
-            
-    } ;
+        PIOA->PIO_CODR = PIO_PA29;            
+    };
     DeviceOff();	
+
+    __enable_irq();
+
     #if defined(DEBUG_SRAM)
     runTime = micros() - startTime;
         Serial.print("Wrote "); Serial.print(length); Serial.print(" bytes to screen in "); Serial.print(runTime); Serial.println(" microseconds");
@@ -292,6 +283,9 @@ uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, Busy
     #if defined(DEBUG_SRAM)
     startTime = micros();
     #endif
+
+    __disable_irq();
+
     DeviceWrite();
     uint16_t idx = 0;
     uint32_t addr = startAddr;
@@ -309,6 +303,9 @@ uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, Busy
               
     } ;
     DeviceOff();	
+
+    __enable_irq();
+
     #if defined(DEBUG_SRAM)
     runTime = micros() - startTime;
         Serial.print("Filled "); Serial.print(length); Serial.print(" bytes to screen in "); Serial.print(runTime); Serial.println(" microseconds");
@@ -318,11 +315,11 @@ uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, Busy
 
 void SRAM::Erase(uint32_t startAddress, uint32_t length)
 {
-    //Serial.print(F("Erasing RAM from 0x"));Serial.print(startAddress, HEX); Serial.print(F(" to 0x")); Serial.print(startAddress + length,HEX);
-    // unsigned long startTime = millis();
     uint32_t pos = 0;
     uint32_t idx = 0;
     uint32_t minLegth = 0;
+    
+    __disable_irq();
 
     SetDataLines(ERASE_BYTE);
     DeviceWrite();
@@ -342,7 +339,8 @@ void SRAM::Erase(uint32_t startAddress, uint32_t length)
     }
     DeviceOff();	
     SetAddress(0);
-    //Serial.print(F(" : Done in ")); Serial.print((millis() - startTime));Serial.println(" ms.");
+
+    __enable_irq();
 }
 
 

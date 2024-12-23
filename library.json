@@ -12,15 +12,27 @@
     [
       {
         "name": "Lev Vayner",
-        "email": "",
+        "email": "info@vaynersystems.com",
         "url": "https://www.vaynersystems.com"
       }
     ],
     "license": "MIT",
     "homepage": "https://www.vaynersystems.com/",
-    "dependencies": {
-      
+    "dependencies": 
+    {
+        "arduino-libraries/SD" : "@^1.3.0",
+        "ivanseidel/DueTimer":"@^1.4.8"
     },
+    
     "frameworks": "arduino",
-    "platforms": "atmelsam"
+    "platforms": [
+        "atmelsam"
+    ],
+    "build": {
+        "flags": [
+            "-I$PROJECT_SRC_DIR",
+            "-I$PROJECT_INCLUDE_DIR",
+            "-I$PROJECT_LIB_DIR"
+        ]
+    }
   }

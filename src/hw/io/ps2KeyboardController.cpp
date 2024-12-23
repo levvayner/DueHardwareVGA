@@ -16,10 +16,14 @@ ConsoleKeyPress ps2KeyboardController::getKey()
         // read the next key
         if ((_c = keyboardPs2.read()))
         {
-            
+            kp.type = None;
             // check for some of the special keys
             Serial.print("Processing PS2 key 0x");
             Serial.println(_c, HEX);
+
+            if((_c &0xFF) == PS2_KEY_ERROR){ //if we encountered an error, reset the keyboard
+                keyboardPs2.begin(PS2_DATA, PS2_CLK);
+            }
 
             
             kp.action = (_c & 0x8000) ? KeyUp : KeyDown;
@@ -32,9 +36,19 @@ ConsoleKeyPress ps2KeyboardController::getKey()
             //if(!) return kp; //if not key up, wait
             _mode = 2;
             _c &= 0xFF;
+            //adjust space and enter keys to be ascii text
+            if(kp.isFunctionKey && ((_c & 0xFF ) == PS2_KEY_SPACE || (_c & 0xFF ) == PS2_KEY_ENTER)){
+                kp.isFunctionKey = false;
+            }
+            if(_entryMode == EntryMode::modeConsole){
+                if(_c == PS2_KEY_ENTER){
+                    _c = 10;
+                    kp.isFunctionKey = false;
+                }
+            }
             if(kp.isFunctionKey){
-                kp.type = Cursor;
-                kp.keyCode = _c;
+                kp.type = Cursor;                
+                kp.keyCode = _c;                
                 _lastKey = new ConsoleKeyPress(kp);
                 return kp;  
             } 
@@ -48,65 +62,73 @@ ConsoleKeyPress ps2KeyboardController::getKey()
             _mode = 0;
         
 
-            /* Check for strings or single character to display */
-            /* Function or similar key */
-            if (_c != PS2_KEY_EUROPE2 && (_c < PS2_KEY_SPACE || _c >= PS2_KEY_F1) && _c != PS2_KEY_TILDE)
-            { // Non printable sort which ones we can print
-                Serial.println("Nonprint chars");
-                kp.type = ConsoleKeyType::Control;
-                for (size_t idx = 0; idx < sizeof(codes); idx++)
-#if defined(PS2_REQUIRES_PROGMEM)
-                    if (c == pgm_read_byte(codes + idx))
-#else
-                    if (_c == codes[idx])
-#endif
-                    { /* String outputs */
-                        _mode = 1;
-#if defined(PS2_REQUIRES_PROGMEM)
-                        _c = pgm_read_byte(sizes + idx);
-#else
-                        //_c = sizes[idx];
-#endif
-#if defined(PS2_REQUIRES_PROGMEM)
-                        strcpy_P(buffer, (char *)pgm_read_word(&(keys[idx])));
-                        lcd.print(buffer);
+//             /* Check for strings or single character to display */
+//             /* Function or similar key */
+//             if (_c != PS2_KEY_EUROPE2 && (_c < PS2_KEY_SPACE || _c >= PS2_KEY_F1) && _c != PS2_KEY_TILDE)
+//             { // Non printable sort which ones we can print
+//                 Serial.println("Nonprint chars");
+//                 kp.type = ConsoleKeyType::Control;
+//                 for (size_t idx = 0; idx < sizeof(codes); idx++)
+// #if defined(PS2_REQUIRES_PROGMEM)
+//                     if (c == pgm_read_byte(codes + idx))
+// #else
+//                     if (_c == codes[idx])
+// #endif
+//                     { /* String outputs */
+//                         _mode = 1;
+// #if defined(PS2_REQUIRES_PROGMEM)
+//                         _c = pgm_read_byte(sizes + idx);
+// #else
+//                         //_c = sizes[idx];
+// #endif
+// #if defined(PS2_REQUIRES_PROGMEM)
+//                         strcpy_P(buffer, (char *)pgm_read_word(&(keys[idx])));
+//                         lcd.print(buffer);
 
-#else
-                        {
-                            // function keys, del
-                            // if(editor.IsConsoleRunning()){
-                            switch (_c)
-                            {
-                            case PS2_KEY_F2:
-                            case PS2_KEY_F3:
-                            Serial.print("Changing color .. ");
-                                kp.type = ColorChange;
-                                kp.keyCode = _c;
-                                _lastKey = new ConsoleKeyPress(kp);
-                                return kp;  
-                            case PS2_KEY_F4:
-                                kp.type = Exit;
-                                kp.keyCode = _c;
-                                _lastKey = new ConsoleKeyPress(kp);
-                                return kp;  
-                            default:
-                                // Serial.print("Received unmapped ps2 key: 0x"); Serial.println(_c, HEX);
-                                break;
-                            }
-                            //}
-                        }
-                        // Serial.print(keys[ idx ]);
-                        // lcd.print(  );
-#endif
-                        // check_cursor( );
-                        break;
-                    }
-                /* if not found a string ignore key cant do anything */
-            }
-            else
+// #else
+//                         {
+//                             // function keys, del
+//                             // if(editor.IsConsoleRunning()){
+//                             switch (_c)
+//                             {
+//                             case PS2_KEY_F2:
+//                             case PS2_KEY_F3:
+//                             Serial.print("Changing color .. ");
+//                                 kp.type = ColorChange;
+//                                 kp.keyCode = _c;
+//                                 _lastKey = new ConsoleKeyPress(kp);
+//                                 return kp;  
+//                             case PS2_KEY_F4:
+//                                 kp.type = Exit;
+//                                 kp.keyCode = _c;
+//                                 _lastKey = new ConsoleKeyPress(kp);
+//                                 return kp;  
+//                             default:
+//                                 // Serial.print("Received unmapped ps2 key: 0x"); Serial.println(_c, HEX);
+//                                 break;
+//                             }
+//                             //}
+//                         }
+//                         // Serial.print(keys[ idx ]);
+//                         // lcd.print(  );
+// #endif
+//                         // check_cursor( );
+//                         break;
+//                     }
+//                 /* if not found a string ignore key cant do anything */
+//             }
+//             else
             { /* Supported key */
-                if (_c <= 127 || _c > 0)
+                kp.isPrintable = !kp.isCtrlPressed && !kp.isAltPressed && !kp.isFunctionKey  && (_c <= 127 && _c > 0);
+                if(kp.isPrintable && kp.action == KeyUp){
+                    //remove char from active
+                    activeKeys[_c] = false;
+                }
+                if(kp.isPrintable && kp.action == KeyDown)
                 {
+                    //check that its not already pressed
+                    if(activeKeys[_c]) return kp;
+                    activeKeys[_c] = true;
                     kp.type = ASCII;                   
                     if(
                         ((!kp.isShiftPressed && !kp.isCaps) || (kp.isShiftPressed && kp.isCaps))
@@ -195,9 +217,9 @@ ConsoleKeyPress ps2KeyboardController::getKey()
                         default:
                             break;
                         }
-                        
                     }
                     kp.keyCode = _c;
+                    
                     _lastKey = new ConsoleKeyPress(kp);
                     return kp;  
                 }

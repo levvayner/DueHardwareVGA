@@ -3,7 +3,8 @@
 
 VRAMSettings resolution1(432, 240);
 VRAMSettings resolution2(320, 300);
-char buf[32];
+VRAM graphics;
+char buf[64];
 void changeResolution(){
     memset(buf, 0, sizeof(buf));
     if(digitalRead(PIN_RESOLUTION) == HIGH && graphics.settings != resolution2){
@@ -61,6 +62,10 @@ void VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
     {
+        if(text[idx] == 10){
+            //TODO: implement going to next line
+            continue;
+        }
         uint16_t bufferSize = settings.charWidth * (settings.charHeight + 1);
         byte letterBuffer[bufferSize]; 
         memset(letterBuffer, backgroundColor, bufferSize);
@@ -159,7 +164,7 @@ void VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, 
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
     {
-
+        if(!isascii(text[idx])) continue;
         for(uint8_t charX = 0;charX < settings.charWidth;charX ++){
             byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
 
@@ -188,14 +193,14 @@ void VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, 
     }
 }
 
-void VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer)
+void VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer, BusyType busyType)
 {
     for(int line = 0; line < height; line++){            
         WriteBytes(
             ((y + line) << settings.horizontalBits) + x,
             (uint8_t*)buffer + (line * width), 
             width,
-            btAny
+            busyType
         );
     }    
 }

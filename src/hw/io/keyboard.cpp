@@ -1,66 +1,33 @@
 #include "keyboard.h"
-//#include "SAMDUETimerInterrupt.h"
 VGAKeyboard keyboard;
-String serialInputText = "";
-String ps2InputText = "";
 void vgaKeyboardGetInput(){
-    keyboard.onTick();
+    keyboard.getKey();
 }
 
-
-void VGAKeyboard::begin(long waitForKeyTimeout, bool waitForNewLine)
+void VGAKeyboard::begin(UARTClass serial,long waitForKeyTimeout, bool waitForNewLine)
 {
+    _serialInput = serial;
     _ps2Input.begin();
-    //_serialInput.begin(115220);
-    //pmc_enable_periph_clk (TC_INTERFACE_ID + 0*3+0) ;  // clock the TC0 channel 0
-    //attachDueInterrupt(20000, vgaKeyboardGetInput, "Keyboard");
+    _waitForKeyTimeout = waitForKeyTimeout;
+    _keyPingTimer = new DueTimer(Timer.getAvailable());
+    _keyPingTimer->attachInterrupt(vgaKeyboardGetInput);
+    _keyPingTimer->start(_waitForKeyTimeout * 1000);
 }
 
-void VGAKeyboard::onTick()
-{
-  
-        _processInput(Serial);  
-        _processInput(_ps2Input);
-
-        if(_ps2Input.LastKey() != nullptr){
-            auto key = *_ps2Input.LastKey();
-            if(key.isAltPressed){
-                switch (key.keyCode)
-                {
-                case PS2_KEY_D:
-                    Serial.println("Execute Alt + D action");
-                    break;
+char VGAKeyboard::getKey()
+{ 
+    if(_serialInput.available()){
+        char c = _serialInput.read();
+        //Serial.println(c, HEX);
+        if(c > 0 && onKeyDown != nullptr) onKeyDown(c);
+        return c;
                 
-                default:
-                    break;
-                }
-            }
-            if(key.isCtrlPressed){
-                switch (key.keyCode)
-                {
-                case PS2_KEY_D:
-                    Serial.println("Execute Ctrl + D action");
-                    break;
-                
-                default:
-                    break;
-                }
-            }
-            _ps2Input.ClearLastKey();
-        }
+    }    
 
-}
-uint16_t VGAKeyboard::attachDueInterrupt(double microseconds, void (* callback)(), const char *TimerName)
-{
-    
-//   DueTimerInterrupt dueTimerInterrupt = DueTimer.getAvailable();
-  
-//   dueTimerInterrupt.attachInterruptInterval(microseconds, (void (*)())callback);
-
-//   uint16_t timerNumber = dueTimerInterrupt.getTimerNumber();
-  
-//   Serial.print(TimerName); Serial.print(F(" attached to Timer(")); Serial.print(timerNumber); Serial.println(F(")"));
-
-//   return timerNumber;
-
+    if(_ps2Input.available()){ 
+        char c = _ps2Input.read();
+        if(c > 0 && onKeyDown != nullptr) onKeyDown(c);
+        return c;
+    }
+    return 0;
 }

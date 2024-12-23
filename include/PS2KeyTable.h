@@ -206,7 +206,7 @@ const uint8_t extended_key[][ 2 ] = {
                 { PS2_KC_DN_ARROW, PS2_KEY_DN_ARROW },
                 { PS2_KC_INSERT, PS2_KEY_INSERT },
                 { PS2_KC_DELETE, PS2_KEY_DELETE },
-                { PS2_KC_KP_ENTER, PS2_KEY_KP_ENTER },
+                { PS2_KC_KP_ENTER, PS2_KEY_ENTER },
                 { PS2_KC_KP_DIV, PS2_KEY_KP_DIV },
                 { PS2_KC_NEXT_TR, PS2_KEY_NEXT_TR },
                 { PS2_KC_PREV_TR, PS2_KEY_PREV_TR },

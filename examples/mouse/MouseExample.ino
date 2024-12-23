@@ -33,7 +33,6 @@ void loop(){
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom, 127, btVertical);
     }
     if(data.position.x != 0 || data.position.y != 0){
-        //char buf[128];
         //erase
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom,0, btVertical);
         //update
@@ -59,6 +58,8 @@ void loop(){
 
         //draw new
         graphics.drawRectangle(mouseLocation.x,mouseLocation.y, zoom, zoom,127, btVertical);
+
+        //char buf[128];
         // sprintf(buf, "New location (%d,%d)",mouseLocation.x, mouseLocation.y   );
         // Serial.println(buf);
     }

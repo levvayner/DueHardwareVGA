@@ -12,7 +12,7 @@ enum startAddress{
 
 //https://www.eevblog.com/forum/microcontrollers/stuck-on-how-to-load-application-from-custom-arm-bootloader-samd51/
 /// @brief Jumps to another program. Must already be loaded in memory.
-static void startApp(startAddress appStartAddress) {
+inline static void startApp(startAddress appStartAddress) {
 
     //we should only jump to begining of flash bank 0 or bank 1
     if(appStartAddress != IFLASH0_ADDR  && appStartAddress != IFLASH1_ADDR){
@@ -34,7 +34,11 @@ static void startApp(startAddress appStartAddress) {
         Serial.print(" is out of valid range  0x");Serial.print(IFLASH0_ADDR, HEX); Serial.print(" to 0x");
         Serial.println(IFLASH_SIZE + IFLASH0_ADDR, HEX);
         return ;
-    } else {
+    }  else if(app_start_address - appStartAddress > IFLASH0_SIZE) {
+        Serial.println("Wrong memory bank. Quitting");
+        return;
+
+    }else {
         Serial.print("App provided valid address 0x"); Serial.println(app_start_address, HEX);
     }
     //app_start_address += IFLASH0_SIZE;

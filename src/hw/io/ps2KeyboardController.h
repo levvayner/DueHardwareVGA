@@ -7,7 +7,10 @@
 #include "PS2KeyAdvanced.h"
 #include "sw/Keys.h"
 
-
+enum EntryMode{
+    modeConsole = 0,
+    modeEditor = 1
+};
 extern PS2KeyAdvanced keyboardPs2;
 /* current cursor position */
 
@@ -79,6 +82,10 @@ public:
     virtual inline uint8_t available() { return keyboardPs2.available();}
     virtual inline uint8_t read(){ 
         auto key = getKey();
+        // Serial.print("Read Keycode 0x"); Serial.println(key.keyCode,HEX);
+        // Serial.print("Key type"); Serial.println(key.type == ASCII ? "ASCII" : 
+        //     key.type == Control ? "Control" : 
+        //     key.type ==  Cursor ? "Cursor" : "Other");
         if(key.type == None) return 0;
         if(key.type == ConsoleKeyType::ASCII && key.action == KeyDown)        
             return key.keyCode;
@@ -86,7 +93,12 @@ public:
     }
     virtual inline ConsoleKeyPress* LastKey(){ return _lastKey;}
     virtual inline void ClearLastKey(){ _lastKey = nullptr;}
+    bool activeKeys[0x7F];
     ConsoleKeyPress getKey();
+
+    virtual inline void flush(){
+        ClearLastKey();
+    }
 
 private:
 
@@ -98,6 +110,8 @@ private:
     byte _idx = 0;
     uint16_t _c;
     ConsoleKeyPress *_lastKey;
+    EntryMode _entryMode;
+    
 
 
 };

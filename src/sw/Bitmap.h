@@ -5,9 +5,9 @@
 //#include "SD-master\SD.h"
 #include "SD.h"
 //#include "SPFD5408_TFT_eSPI.h"
-#define BUFFPIXEL 432
+//#define BUFFPIXEL 432
 
-typedef struct BitmapFileInfo {
+struct BitmapFileInfo {
 	uint16_t width;
 	uint16_t height;
 	uint16_t offset;

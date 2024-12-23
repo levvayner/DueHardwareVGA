@@ -19,6 +19,7 @@ struct ConsoleKeyPress{
     bool isCtrlPressed = false;
     bool isShiftPressed = false;
     bool isFunctionKey = false;
+    bool isPrintable = false;
     bool isCaps = false;
     uint16_t keyCode;
     ConsoleKeyPress(){

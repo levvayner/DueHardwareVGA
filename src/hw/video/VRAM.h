@@ -6,8 +6,9 @@
 
 
 struct Point{
-    uint16_t x;
-    uint16_t y;
+    int x;
+    int y;
+    Point(): x(0), y(0){};
     Point(int x, int y){ this->x = x; this->y = y;}
 };
 
@@ -83,13 +84,21 @@ struct VRAMSettings{
         this->charHeight = charHeight;
         this->horizontalBits = horizontalBits;
     }
-    bool operator !=(const VRAMSettings& other){
-        return this->charHeight == other.charHeight &&
+    bool operator ==(const VRAMSettings& other){
+       return this->charHeight == other.charHeight &&
             this->charWidth == other.charWidth &&
             this->horizontalBits == other.horizontalBits &&
             this->screenWidth == other.screenWidth &&
             this->screenHeight == other.screenHeight &&
             this->screenBufferHeight == other.screenBufferHeight;
+    }
+    bool operator !=(const VRAMSettings& other){
+        return this->charHeight != other.charHeight ||
+            this->charWidth != other.charWidth ||
+            this->horizontalBits != other.horizontalBits ||
+            this->screenWidth != other.screenWidth ||
+            this->screenHeight != other.screenHeight ||
+            this->screenBufferHeight != other.screenBufferHeight;
     }
 };
 
@@ -113,6 +122,10 @@ class VRAM : public SRAM{
         virtual void drawText(int x, int y, const char * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
         virtual void drawText(int x, int y, const char * text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
 
+        virtual inline void drawText(int x, int y, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny){
+            drawText(x, y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
+        }
+        
         virtual void drawText(int x, int y, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
         virtual void drawText(int x, int y, char text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
         
@@ -127,7 +140,7 @@ class VRAM : public SRAM{
         virtual void drawTextToBuffer(const char * text, byte* buffer,  uint16_t stride, byte color);
         virtual void drawTextToBuffer(const char * text, const byte * colors, byte* buffer,  uint16_t stride);
 
-        virtual void drawBuffer(int x, int y, int width, int height, const byte* buffer);
+        virtual void drawBuffer(int x, int y, int width, int height, const byte* buffer, BusyType busyType = btAny);
 
         virtual bool drawPixel(int x, int y, byte color = 0xFF, BusyType busyType = btAny);
         virtual bool drawPixel(int x, int y, Color color, BusyType busyType = btAny);
@@ -199,6 +212,21 @@ class VRAM : public SRAM{
         uint8_t s = a + b;
         uint8_t m = (s - ((a ^ b) & 0x01010101)) & 0x01010101;
 	    return m * 0xFF >> 8 | (s - m);
+    }
+    static inline uint8_t averageColors(uint8_t a, uint8_t b){
+        return (((a>> 5) + (b >> 5)) >> 1) << 5 | 
+        ((((a >> 3 )& 0x7) + ((b >> 3)  & 0x7)) >> 1) << 3 | 
+        ((((a & 0x3) + (b & 0x3)) >> 1) & 0x3);
+    }
+
+
+    static inline  uint8_t diffColors(uint8_t a, uint8_t b) {
+        return ((a>> 5) + (b >> 5) / 2) << 5 | 
+        (((a >> 3 )& 0x7) + ((b >> 3)  & 0x7)/ 2) << 3 | 
+        ((((a & 0x3) + (b&0x3))/2) & 0x3);
+        // uint8_t s = a + b;
+        // uint8_t m = (s - ((a ^ b) & 0x01010101)) & 0x01010101;
+	    // return s - m;
     }
 
     private:

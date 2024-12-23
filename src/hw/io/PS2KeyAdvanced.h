@@ -263,7 +263,7 @@
 #define PS2_KEY_KP9         0x39
 #define PS2_KEY_KP_DOT      0x2E
 #define PS2_KEY_DIV         0x2F
-#define PS2_KEY_KP_ENTER    0x1E
+//#define PS2_KEY_KP_ENTER    0x1E
 #define PS2_KEY_KP_PLUS     0x2B
 #define PS2_KEY_KP_MINUS    0x2D
 #define PS2_KEY_KP_TIMES    0x2A

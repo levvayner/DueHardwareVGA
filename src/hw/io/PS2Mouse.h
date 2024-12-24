@@ -22,9 +22,9 @@ private:
 
     void low(int pin);
 
-    void writeAndReadAck(int data);
+    bool writeAndReadAck(int data);
 
-    void reset();
+    bool reset();
 
     void setSampleRate(int rate);
 
@@ -38,7 +38,7 @@ private:
 
     void setRemoteMode();
 
-    void waitForClockState(int expectedState);
+    bool waitForClockState(int expectedState);
 
     void requestData();
 
@@ -46,14 +46,14 @@ private:
 
     int readBit();
 
-    void writeByte(char data);
+    bool writeByte(char data);
 
-    void writeBit(int bit);
+    bool writeBit(int bit);
 
 public:
     PS2Mouse(int clockPin, int dataPin);
 
-    void begin();
+    bool begin();
 
     MouseData readData();
 };

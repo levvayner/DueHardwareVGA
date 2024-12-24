@@ -30,19 +30,20 @@ void PS2Mouse::low(int pin) {
     digitalWrite(pin, LOW);
 }
 
-void PS2Mouse::begin() {
+bool PS2Mouse::begin() {
     high(_clockPin);
     high(_dataPin);
-    reset();
+    if(! reset()) return false;
     checkIntelliMouseExtensions();
     setResolution(RESOLUTION_8_COUNTS_PER_MM);
     setScaling(SCALING_1_TO_1);
     setSampleRate(40);
     setRemoteMode();
     delayMicroseconds(100);
+    return true;
 }
 
-void PS2Mouse::writeByte(char data) {
+bool PS2Mouse::writeByte(char data) {
     int parityBit = 1;
 
     high(_dataPin);
@@ -56,7 +57,8 @@ void PS2Mouse::writeByte(char data) {
     // start bit
     high(_clockPin);
 
-    waitForClockState(LOW);
+    if(!waitForClockState(LOW))
+        return false;
 
     // data
     for (int i = 0; i < 8; i++) {
@@ -71,7 +73,8 @@ void PS2Mouse::writeByte(char data) {
     // stop bit
     high(_dataPin);
     delayMicroseconds(50);
-    waitForClockState(LOW);
+    if(!waitForClockState(LOW))
+        return false;
 
     // wait for mouse to switch modes
     unsigned long startTime = millis();
@@ -80,17 +83,22 @@ void PS2Mouse::writeByte(char data) {
 
     // put a hold on the incoming data
     low(_clockPin);
+    return true;
 }
 
-void PS2Mouse::writeBit(int bit) {
+bool PS2Mouse::writeBit(int bit) {
     if (bit == HIGH) {
         high(_dataPin);
     } else {
         low(_dataPin);
     }
 
-    waitForClockState(HIGH);
-    waitForClockState(LOW);
+    if(!waitForClockState(HIGH))
+        return false;
+    if(!waitForClockState(LOW))
+        return false;
+
+    return true;
 }
 
 char PS2Mouse::readByte() {
@@ -134,15 +142,17 @@ void PS2Mouse::setSampleRate(int rate) {
     writeAndReadAck(rate);
 }
 
-void PS2Mouse::writeAndReadAck(int data) {
-    writeByte((char) data);
+bool PS2Mouse::writeAndReadAck(int data) {
+    if(!writeByte((char) data)) return false;
     readByte();
+    return true;
 }
 
-void PS2Mouse::reset() {
-    writeAndReadAck(RESET);
+bool PS2Mouse::reset() {
+    if(!writeAndReadAck(RESET)) return false;
     readByte();  // self-test status
     readByte();  // mouse ID
+    return true;
 }
 
 void PS2Mouse::checkIntelliMouseExtensions() {
@@ -156,7 +166,7 @@ void PS2Mouse::checkIntelliMouseExtensions() {
 }
 
 char PS2Mouse::getDeviceId() {
-    writeAndReadAck(GET_DEVICE_ID);
+    if(!writeAndReadAck(GET_DEVICE_ID)) return 0;
     return readByte();
 }
 
@@ -169,14 +179,16 @@ void PS2Mouse::setRemoteMode() {
 }
 
 void PS2Mouse::setResolution(int resolution) {
-    writeAndReadAck(SET_RESOLUTION);
+    if(!writeAndReadAck(SET_RESOLUTION)) return;
     writeAndReadAck(resolution);
 }
 
-void PS2Mouse::waitForClockState(int expectedState) {
+bool PS2Mouse::waitForClockState(int expectedState) {
     unsigned long startTime = millis();
-    while (digitalRead(_clockPin) != expectedState && millis() - startTime < 1000)
-        ;
+    while (digitalRead(_clockPin) != expectedState)
+        if(millis() - startTime > 1000) 
+            return false;
+    return true;
 }
 
 MouseData PS2Mouse::readData() {

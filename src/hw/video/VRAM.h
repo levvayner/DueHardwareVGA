@@ -10,6 +10,13 @@ struct Point{
     int y;
     Point(): x(0), y(0){};
     Point(int x, int y){ this->x = x; this->y = y;}
+
+    bool operator ==(Point& other){
+        return x == other.x && y == other.y;
+    }
+    bool operator !=(Point& other){
+        return x != other.x || y != other.y;
+    }
 };
 
 struct TriangleLeg{
@@ -125,9 +132,17 @@ class VRAM : public SRAM{
         virtual inline void drawText(int x, int y, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny){
             drawText(x, y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
         }
+
+        virtual inline void drawText(Point location, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny){
+            drawText(location.x, location.y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
+        }
         
         virtual void drawText(int x, int y, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
         virtual void drawText(int x, int y, char text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny);
+        
+        virtual void drawText(Point location, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny){
+            drawText(location.x, location.y, text, color, backgroundColor, useFrameBuffer, busyType );
+        }
         
         virtual inline void drawText(int x, int y, unsigned long value, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btAny){
             

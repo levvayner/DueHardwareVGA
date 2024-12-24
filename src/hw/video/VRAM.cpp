@@ -31,7 +31,7 @@ VRAM::VRAM()
 VRAM::~VRAM()
 {
     end();
-    free(_frameBuffer);
+    //free(_frameBuffer);
 }
 void VRAM::begin(){
     settings = resolution1;

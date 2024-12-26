@@ -1,3 +1,5 @@
+#include "hw/io/keyboard.h"
+#include "hw/io/mouse.h"
 #define HSRAM_ADDR            0x20000000u /**< HSRAM base address */
 #define HSRAM_SIZE            0x00030000u /* 192 kB */
 #define DBL_TAP_PTR ((volatile uint32_t *)(HSRAM_ADDR + HSRAM_SIZE - 4))
@@ -56,8 +58,13 @@ inline static void startApp(startAddress appStartAddress) {
         }
         *DBL_TAP_PTR = 0;
     }
+
+    Serial.println("Disabling keyboard and mouse");
+    keyboard.~VGAKeyboard(); //drop due interrupt
+    mouse.~VGAMouse(); //drop due interruptconsole
+
     Serial.print("Jumping into application at 0x"); Serial.println(app_start_address, HEX);
-    delay(200);
+    delay(100);
     Serial.end();    
     /* Rebase the Stack Pointer */
     // __set_MSP(*(uint32_t *)appStartAddress);

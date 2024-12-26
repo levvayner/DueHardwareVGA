@@ -5,7 +5,7 @@ void ps2KeyboardController::begin()
 {
     // Configure the keyboard library
     keyboardPs2.begin(PS2_DATA1, PS2_CLK1);
-    Serial.print("PS2 keyboard started");
+    Serial.println("PS2 keyboard started");
 }
 
 ConsoleKeyPress ps2KeyboardController::getKey()

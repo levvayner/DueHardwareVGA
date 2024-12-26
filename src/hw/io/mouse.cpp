@@ -21,14 +21,17 @@ void VGAMouse::begin(uint16_t intervalMs)
 void VGAMouse::end()
 {
     _mouse = nullptr;
-    _mouseReadTimer->stop();
-    _mouseReadTimer->detachInterrupt();
+    if(_initialized){
+        _mouseReadTimer->stop();
+        _mouseReadTimer->detachInterrupt();
+    }
     _mouseReadTimer = nullptr;
     _initialized = false;
 }
 
 void VGAMouse::drawCursor(int x, int y, int width, int height)
 {
+    if(!_initialized) return;
     memcpy(_mouseCursorBuffer, mouseBuffer, width*height);
         for(int line=0;line<height; line++){
         uint8_t cursorRowPixels = _pointers[(int)_pointer][line];
@@ -45,6 +48,7 @@ void VGAMouse::drawCursor(int x, int y, int width, int height)
 
 void VGAMouse::onTick()
 {
+    if(!_initialized) return;
     _lastData =_mouse->readData();
     
     bool pendingEvent = (_lastData.status & 0x7 ) > 0; //any lower 3 bits set
@@ -94,6 +98,7 @@ void VGAMouse::onTick()
 
 void VGAMouse::update()
 {
+    if(!_initialized) return;
     if(_pendingEvent || _pendingMove){
         //write out the old
         if(mouseBuffer != nullptr){

@@ -17,7 +17,9 @@ class VGAMouse{
     public:
 
     inline ~VGAMouse() { 
-        _mouseReadTimer->detachInterrupt(); 
+        if(_initialized){
+            _mouseReadTimer->detachInterrupt(); 
+        }
         _mouseReadTimer = nullptr;
         _mouse = nullptr;
     }

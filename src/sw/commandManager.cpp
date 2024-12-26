@@ -85,11 +85,12 @@ commandRequest commandManager::buildCommand(const char* commandText){
                 Serial.print("Unknown command: "); Serial.println(cmdTextString.c_str());
                 return request;
             }
+            cmdEndIdx++; // skip space
            
             request.name = cmd->name;
             request.onExecute = cmd->onExecute;
             request.valid = true;
-            bool hasFlags = false;
+            //bool hasFlags = false;
             for(int flagIdx = cmdEndIdx; flagIdx < cmdLength; flagIdx++){
                 if(cmdText.c_str()[flagIdx] == '-' && cmdText.c_str()[flagIdx - 1] == ' '){
                     //has flags

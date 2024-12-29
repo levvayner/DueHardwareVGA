@@ -12,14 +12,24 @@ enum startAddress{
 
 };
 
+enum returnResult{
+    invalidAddress = 1,
+    invalidAddressRange = 2,
+    invalidBank = 3,
+    failedToEnterProgrammingMode = 4,
+    sucess = 0
+};
+#define returnResultText(r) {r == 0 ? "Sucess" : r == 1 ? "Invalid Address" : r == 2 ? "Invalid Address Range"   : r == 3 ? "Invalid Bank" : "Failed to enter programming mode"}
+//char[3] returnResultText = {"Sucess", "Invalid Address", "Address Range", "Invalid Bank", "Failed to enter programming mode"};
 //https://www.eevblog.com/forum/microcontrollers/stuck-on-how-to-load-application-from-custom-arm-bootloader-samd51/
 /// @brief Jumps to another program. Must already be loaded in memory.
-inline static void startApp(startAddress appStartAddress) {
+template <typename TPort>
+inline static returnResult startApp(startAddress appStartAddress, TPort port) {
 
     //we should only jump to begining of flash bank 0 or bank 1
     if(appStartAddress != IFLASH0_ADDR  && appStartAddress != IFLASH1_ADDR){
-        Serial.print("Invalid jump address, aborting!");
-        return;
+        port.print("Invalid jump address, aborting!");
+        return invalidAddress;
     }
     uint32_t app_start_address;
 
@@ -32,24 +42,25 @@ inline static void startApp(startAddress appStartAddress) {
      */
     if (app_start_address < IFLASH0_ADDR || app_start_address > IFLASH_SIZE + IFLASH0_ADDR) {           // This check is passed
         /* Stay in bootloader */
-        Serial.print("Code execution failed. Address 0x"); Serial.print(app_start_address,HEX); 
-        Serial.print(" is out of valid range  0x");Serial.print(IFLASH0_ADDR, HEX); Serial.print(" to 0x");
-        Serial.println(IFLASH_SIZE + IFLASH0_ADDR, HEX);
-        return ;
+        port.print("Code execution failed. Address 0x"); Serial.print(app_start_address,HEX); 
+        port.print(" is out of valid range  0x");Serial.print(IFLASH0_ADDR, HEX); Serial.print(" to 0x");
+        port.println(IFLASH_SIZE + IFLASH0_ADDR, HEX);
+        return invalidAddressRange;
     }  else if(app_start_address - appStartAddress > IFLASH0_SIZE) {
-        Serial.println("Wrong memory bank. Quitting");
-        return;
+        port.println("Wrong memory bank. Quitting");
+        return invalidBank;
 
-    }else {
-        Serial.print("App provided valid address 0x"); Serial.println(app_start_address, HEX);
     }
+    // else {
+    //     Serial.print("App provided valid address 0x"); Serial.println(app_start_address, HEX);
+    // }
     //app_start_address += IFLASH0_SIZE;
     if (RESET_CONTROLLER->RSTC_SR & 0x1 << 17) { //reset in progress
         *DBL_TAP_PTR = 0;
     }
     else if (*DBL_TAP_PTR == DBL_TAP_MAGIC) {
         *DBL_TAP_PTR = 0;
-        return; // stay in bootloader                                          // This is to double tab to go into SAMBA programing mode
+        return failedToEnterProgrammingMode; // stay in bootloader                                          // This is to double tab to go into SAMBA programing mode
     }
     else {
         if (*DBL_TAP_PTR != DBL_TAP_MAGIC_QUICK_BOOT) {
@@ -59,13 +70,13 @@ inline static void startApp(startAddress appStartAddress) {
         *DBL_TAP_PTR = 0;
     }
 
-    Serial.println("Disabling keyboard and mouse");
+    port.println("Disabling keyboard and mouse");
     keyboard.~VGAKeyboard(); //drop due interrupt
     mouse.~VGAMouse(); //drop due interruptconsole
 
-    Serial.print("Jumping into application at 0x"); Serial.println(app_start_address, HEX);
+    port.print("Jumping into application at 0x"); port.println(app_start_address, HEX);
     delay(100);
-    Serial.end();    
+    port.end();    
     /* Rebase the Stack Pointer */
     // __set_MSP(*(uint32_t *)appStartAddress);
 
@@ -79,6 +90,6 @@ inline static void startApp(startAddress appStartAddress) {
     //void (*ptr)();
     //ptr =  (void (*)(void))(unsigned *)(*(unsigned *)(app_start_address));
     //ptr(); //call reset vector of loaded binary
-    Serial.println("This code will never be hit!");
+    return sucess;
 
 }

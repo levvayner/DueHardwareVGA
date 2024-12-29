@@ -9,10 +9,11 @@
 #define RETRY_COUNT 3
 #define ERASE_BYTE (uint8_t)0 //value denoting an erased byte
 enum BusyType{
-    btHorizontal = 1,   // draws on horizontal break. suitable for short burst, few pixels
-    btVertical = 2,     // vertical break, suitable for longer writes
+    btInvalid = 0,
+    btVertical = 1,     // vertical break, suitable for longer writes
+    btHorizontal = 2,   // draws on horizontal break. suitable for short burst, few pixels    
     btAny = 3,          // horizontal and vertical breaks from showing screen
-    btVolatile = 4      // writes ignoring vga output state. will likely result in video signal glitching while writing
+    btVolatile = 4      // writes ignoring vga output state. will likely result in video signal glitching while writing    
 };
 enum DeviceState {
 	dsOff = 0,

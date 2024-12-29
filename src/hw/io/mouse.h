@@ -7,21 +7,38 @@
 #include "../Pins.h"
 
 #include "PS2Mouse.h"
+#include "usb.h"
+#define DPI 4
 enum MousePointer{
     pointerFat = 0,
     pointerSkinny = 1,
     pointerSquare = 2,
     pointerSmall = 3
 };
+struct MouseClickArgs{
+    Point location;
+    uint8_t button;
+    MouseClickArgs(Point location, uint8_t button){
+        this->location = location;
+        this->button = button;
+    }
+
+    MouseClickArgs(uint16_t x, uint16_t y, uint8_t button){
+        location.x = (int)x;
+        location.y = (int)y;
+        this->button = button;
+    }
+};
 class VGAMouse{
     public:
 
     inline ~VGAMouse() { 
-        if(_initialized){
+        if(_initializedPs2 || _initializedUsb){
             _mouseReadTimer->detachInterrupt(); 
         }
         _mouseReadTimer = nullptr;
         _mouse = nullptr;
+        _mouseUsb = nullptr;
     }
     //public lifecycle events
 
@@ -33,13 +50,27 @@ class VGAMouse{
 
 
     void onTick();
-    void(*onMouseMove)();
-    void(*onClick)(uint8_t button);
+    void(*onMouseMove)(int16_t x, int16_t y);
+    void(*onMouseDrag)(int16_t x, int16_t y);    
+    void(*onClick)(MouseClickArgs args);
     
     
     inline Point location(){ return _mouseLocation;}
+    inline void setLocation(uint16_t x, uint16_t y){ 
+        _mouseLocation.x = (int)x; 
+        _mouseLocation.y = (int)y;
+        _pendingMove = true;
+    }
     virtual inline MousePointer getPointer(){ return _pointer;}
     virtual inline void setPointer(MousePointer pointer){ _pointer = pointer;}
+
+    virtual inline void RequestRedraw(){
+        _pendingRequestRedraw = true;
+    }
+
+    MouseController * mouseUsb(){
+        return _mouseUsb;
+    }
     
     
 
@@ -48,7 +79,7 @@ class VGAMouse{
     void drawCursor(int x, int y, int width, int height);
     
     private:
-    bool _initialized = false;
+    bool _initializedPs2 = false, _initializedUsb = false;
 
     private:
     
@@ -70,10 +101,13 @@ class VGAMouse{
     DueTimer * _mouseReadTimer;
 
     PS2Mouse *_mouse = nullptr;
+    MouseController * _mouseUsb = nullptr;
     MouseData _lastData;
     bool _pendingEvent = false;
     bool _pendingMove = false;
+    bool _pendingRequestRedraw = false;
 
 };
 extern VGAMouse mouse;
+extern USBHost usb;
 #endif

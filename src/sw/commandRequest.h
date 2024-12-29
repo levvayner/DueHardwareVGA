@@ -8,7 +8,6 @@
 struct commandRequest{
     char *name;  
     void(*onExecute)(commandRequest request);
-    //commandSource source = sourceSerial; 
     char flags[12] = {0};
     char args[64] = {0};
     bool valid = false;

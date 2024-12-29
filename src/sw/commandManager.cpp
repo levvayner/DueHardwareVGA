@@ -16,7 +16,17 @@ byte commandManager::registerCommand(const char * context, const char *name,  co
     Serial.print("Registering command: "); Serial.print(name);
     if(_idx >= sizeof(_commands))
         return -1;
-    
+
+    //see if command exists
+    for(int idx = 0; idx < _idx; idx++){
+        if(strcmp(_commands[idx].context, context) == 0 && strcmp(_commands[idx].name, name) == 0 ){
+            //update command with handler, and return
+            _commands[idx].onExecute = callback;
+            Serial.println(" .. updated");   
+            return 0;
+        }
+    }
+
     command c;
     memset(c.context,0,sizeof(c.context));
     memcpy(c.context,context,min(strlen(context),sizeof(c.context)));
@@ -29,7 +39,7 @@ byte commandManager::registerCommand(const char * context, const char *name,  co
     c.onExecute = callback;    
     _commands[_idx++] = c;
 
-    Serial.println(" .. done");   
+    Serial.println(" .. added");   
     return 0;
     
 }

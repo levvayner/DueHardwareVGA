@@ -61,5 +61,5 @@ void processLS(commandRequest ls)
 void processExit(commandRequest exit)
 {
     Serial.println("Process exit command");
-    startApp(startAddress::FLASH0);
+    startApp(startAddress::FLASH0, Serial);
 }

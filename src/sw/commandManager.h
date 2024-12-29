@@ -13,7 +13,7 @@ class commandManager{
     void clearCommands(const char* context);
     inline uint8_t commandCount(){ return _idx;}
     private:
-    command _commands[32] = {};
+    command _commands[64] = {};
     uint8_t _idx = 0;
     
 };

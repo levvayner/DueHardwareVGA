@@ -5,6 +5,7 @@
 #include "hw/io/PS2KeyAdvanced.h"
 #include "hw/io/PS2Mouse.h"
 #include "hw/io/mouse.h"
+#include "hw/io/usb.h"
 #include "hw/video/SRAM.h"
 #include "hw/video/VRAM.h"
 #include "sw/commandManager.h"

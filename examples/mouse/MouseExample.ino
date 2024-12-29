@@ -4,17 +4,19 @@
 bool _positionUpdated = false;
 bool _mouseClicked = false;
 
-void updatePosition(){
+void updatePosition(int16_t moveX, int16_t moveY){
     _positionUpdated = true;   
 }
 
-void mouseClick(uint8_t button){
+void mouseClick(MouseClickArgs args){
     _mouseClicked = true;
-    auto pointer = mouse.getPointer();
-    pointer = (MousePointer)((int)pointer + 1);
-    if(pointer > 3)
-        pointer = (MousePointer)0;
-    mouse.setPointer(pointer);
+    if(args.button == 0){
+        auto pointer = mouse.getPointer();
+        pointer = (MousePointer)((int)pointer + 1);
+        if(pointer > 3)
+            pointer = (MousePointer)0;
+        mouse.setPointer(pointer);
+    }
 }
 
 void setup(){

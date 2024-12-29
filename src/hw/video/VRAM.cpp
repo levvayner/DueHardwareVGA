@@ -58,6 +58,7 @@ void VRAM::end()
 }
 void VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundColor, bool clearBackground, bool useFrameBuffer, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     uint16_t charOffsetY = 0, charOffsetX = 0;   
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
@@ -114,7 +115,6 @@ void VRAM::drawText(int x, int y, const char *text, Color color, Color backgroun
 }
 void VRAM::drawText(int x, int y, char value, byte color,  byte backgroundColor, bool clearBackground, bool useFrameBuffer, BusyType busyType)
 {
-    char buf[2];
     sprintf(buf,"%c",value);
     drawText(x, y, buf, color, backgroundColor, clearBackground, useFrameBuffer, busyType);    
 }
@@ -164,30 +164,35 @@ void VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, 
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
     {
-        if(!isascii(text[idx])) continue;
-        for(uint8_t charX = 0;charX < settings.charWidth;charX ++){
-            byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
+        bool isEnter = text[idx] == 10;
+        if(!isascii(text[idx]) && !isEnter) continue;
+        
+        if(!isEnter){
+            for(uint8_t charX = 0;charX < settings.charWidth;charX ++){
+                byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
 
 
-            for(int charY = 0; charY < settings.charHeight; charY++){
-               uint32_t offset = ((charY + charOffsetY ) * stride) + charX + charOffsetX;
-                if(column & (1 << charY)) 
-                    buffer[offset] = colors[idx];
+                for(int charY = 0; charY < settings.charHeight; charY++){
+                uint32_t offset = ((charY + charOffsetY ) * stride) + charX + charOffsetX;
+                    if(column & (1 << charY)) 
+                        buffer[offset] = colors[idx];
+                }
+                
             }
-            
         }
 
         //see if we can move over one char to the right
-        if (charOffsetX + settings.charWidth < settings.screenWidth)
+        if (charOffsetX + settings.charWidth < settings.screenWidth && !isEnter)
         {
             charOffsetX += settings.charWidth;            
         } else{
+            //Serial.print("Advance to next line");
             //otherwise advance to next available line or beginning
             charOffsetX = 0;
-            if(charOffsetY + settings.screenHeight * 2 < settings.screenHeight ){
+            if(charOffsetY + settings.charHeight  < settings.screenHeight/ settings.charWidth){
                 charOffsetY += settings.charHeight;
             } else {
-                charOffsetY = 0;
+                charOffsetY = 0; //wrap around to beggining
             }
         }
     }
@@ -195,6 +200,7 @@ void VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, 
 
 void VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     for(int line = 0; line < height; line++){            
         WriteBytes(
             ((y + line) << settings.horizontalBits) + x,
@@ -207,6 +213,7 @@ void VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer, B
 
 bool VRAM::drawPixel(int x, int y, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     if(x < 0 || x > settings.screenWidth) return false;
     if(y < 0 || y > settings.screenHeight) return false;
     return WriteByte((y << settings.horizontalBits) + x, color, busyType);
@@ -214,16 +221,19 @@ bool VRAM::drawPixel(int x, int y, byte color, BusyType busyType)
 
 bool VRAM::drawPixel(int x, int y, Color color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     return drawPixel(x,y, color.ToByte());
 }
 
 uint8_t VRAM::readPixel(int x, int y, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     return ReadByte((y << settings.horizontalBits) + x);
 }
 
 void VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     for(int line=0;line < height;line++){
             graphics.ReadBytes(
                 ((line + y) << graphics.settings.horizontalBits) + x,
@@ -235,17 +245,9 @@ void VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, Busy
 
 bool VRAM::drawLine(int x1, int y1, int x2, int y2, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     //char buf[256];
-    int leftX = x1;
-    //int leftY = y1;
-    int rightX = x2;
-    //int rightY = y2;
-    if(x1 > x2){
-        leftX = x2;
-        //leftY = y2;
-        rightX = x1;
-        //rightY = y2;
-    }
+    
     // find slope, increment from x1 to x2, changing y by slope
     if(x2 == x1) { //vertical line
         for(int y = y1; (y1 < y2) ?  y < y2 : y > y2; (y1 < y2) ? y++ : y--)
@@ -263,27 +265,31 @@ bool VRAM::drawLine(int x1, int y1, int x2, int y2, byte color, BusyType busyTyp
 
     double step = 1/slope;
     double xCoord = x1;
-    //  sprintf(buf,"Drawing line from (%i,%i) to (%i, %i).\nSlope: %lf\n", x1, y1, x2, y2, slope);
-    //  Serial.println(buf);
+    // sprintf(buf,"Drawing line from (%i,%i) to (%i, %i).\nSlope: %lf\n", x1, y1, x2, y2, slope);
+    // Serial.println(buf);
     if(slope > 1 || slope < -1){
         
         
-        for(double yCoord = y1; (y1 < y2) ? yCoord < y2 : yCoord > y2;  (y1 < y2) ? yCoord+= 1 : yCoord-= 1){     
-            (x1 < x2) ? xCoord+= step : xCoord-= step ;
+        for(double yCoord = (x1 < x2 ? y1 : y2); (x1 < x2) ? yCoord < y2 : yCoord < y1; yCoord+= 1 ){     
+            xCoord+= abs(step);
             drawPixel((int)xCoord, (int)yCoord, color);
         }
     
 
     } else{        
-        for(xCoord = leftX;  xCoord < rightX;  xCoord+= step){
-            // Serial.print("X coord "); Serial.println(xCoord);
-            double yCoord = (xCoord - x1) * slope + y1;
+        
+        for(xCoord = x1 < x2 ? x1 : x2;  x1 < x2 ?  xCoord < x2 : xCoord < x1; xCoord+= abs(step)){
+            
+            double yCoord = (xCoord - (x1 < x2 ? x1 : x2)) * slope + (x1 < x2 ? y1 : y2);
+            //Serial.print("X coord "); Serial.print(xCoord);  Serial.print("  Y coord "); Serial.println(yCoord);
+            if(xCoord < 0) continue;
+            if(xCoord > settings.screenWidth) continue;
             if(yCoord < 0) continue;
             if(yCoord > settings.screenHeight) break;
             // sprintf(buf,"Drawing line from %d with length %d with legth of %d on y %d",
             //     (x1 < x2) ?  xCoord : prevX, step, yCoord
             // );
-            FillBytes(((int)yCoord << settings.horizontalBits) + xCoord, color,step );
+            FillBytes(((int)yCoord << settings.horizontalBits) + xCoord, color, abs(step) );
             //drawLine((int)xCoord, (int)yCoord, prevX, yCoord, color);
            
             
@@ -317,6 +323,7 @@ bool VRAM::drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, byte col
 
 bool VRAM::drawRectangle(int x1, int y1, int width, int height, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     //TODO: clip to screen
     //draw buffered top and bottom
     if(x1 > settings.screenWidth) return false;
@@ -357,6 +364,7 @@ bool VRAM::drawRectangle(Point topLeft, Point bottomRight, Color color, BusyType
 
 bool VRAM::fillRectangle(int x1, int y1, int width, int height, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     if(x1 < 0) x1 = 0;
     if(y1 < 0) y1 = 0;
     if(width > settings.screenWidth - x1) width = settings.screenWidth - x1;
@@ -385,6 +393,7 @@ bool VRAM::fillRectangle(Point topLeft, Point bottomRight, Color color, BusyType
 
 bool VRAM::drawCircle(int centerX, int centerY, int radius, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     int x = 0, y = -radius, p = -radius;
     while(x < -y){
         if(p > 0){
@@ -409,8 +418,9 @@ bool VRAM::drawCircle(int centerX, int centerY, int radius, byte color, BusyType
     //return drawArc(x,y,0,360,radius, color);
 }
 
-bool VRAM::drawArc(int x, int y, int startAngle, int endAngle, int radius, byte color)
+bool VRAM::drawArc(int x, int y, int startAngle, int endAngle, int radius, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     int i;
     double radian;
 
@@ -425,8 +435,9 @@ bool VRAM::drawArc(int x, int y, int startAngle, int endAngle, int radius, byte 
     return false;
 }
 
-bool VRAM::fillCircle(int centerX, int centerY, int radius, byte color)
+bool VRAM::fillCircle(int centerX, int centerY, int radius, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     int x = 0, y = -radius, p = -radius;
     int startX = 0, width = 0;
     while(x < -y){
@@ -491,8 +502,9 @@ void VRAM::render()
     Serial.print(" completed in "); Serial.print(millis() - startTime); Serial.println(" ms.");
 }
 
-void VRAM::drawOval(int centerX, int centerY, int width, int height, byte color)
+void VRAM::drawOval(int centerX, int centerY, int width, int height, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     int hh = height * height;
     int ww = width * width;
     int hhww = hh * ww;
@@ -546,8 +558,9 @@ void VRAM::drawOval(int centerX, int centerY, int width, int height, byte color)
     }
 }
 
-void VRAM::fillOval(int centerX, int centerY, int width, int height, byte color)
+void VRAM::fillOval(int centerX, int centerY, int width, int height, byte color, BusyType busyType)
 {
+    if(busyType == btInvalid) busyType = _waitType;
     int hh = height * height;
     int ww = width * width;
     int hhww = hh * ww;

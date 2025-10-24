@@ -15,4 +15,5 @@
 #include "sw/command.h"
 #include "sw/commandManager.h"
 #include "sw/commandRequest.h"
+#include "sw/Graphics.h"
 #include "sw/Keys.h"

@@ -11,7 +11,7 @@
 /// @param flags Valid flags that can be accepted. e.g. lL to accept -l and -L
 /// @param callback 
 /// @return 0 if sucessfull. 
-byte commandManager::registerCommand(const char * context, const char *name,  const char *flags, void (*callback)(commandRequest request))
+byte commandManager::registerCommand(const char * context, const char *name,  const char *flags, void (*callback)(commandRequest request), const char * description)
 {
     Serial.print("Registering command: "); Serial.print(name);
     if(_idx >= sizeof(_commands))
@@ -36,6 +36,10 @@ byte commandManager::registerCommand(const char * context, const char *name,  co
     
     memset(c.flags,0,sizeof(c.flags));
     memcpy(c.flags,flags,min(strlen(flags),sizeof(c.flags)));
+
+    memset(c.desc,0, sizeof(c.desc));
+    memcpy(c.desc, description, min(strlen(description), sizeof(c.desc)));
+
     c.onExecute = callback;    
     _commands[_idx++] = c;
 
@@ -52,6 +56,11 @@ command* commandManager::getCommand(const char *name)
             return &_commands[idx];
     }
     return nullptr;
+}
+
+command* commandManager::getCommands()
+{
+    return _commands;
 }
 
 commandRequest commandManager::buildCommand(const char* commandText){

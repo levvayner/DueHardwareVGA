@@ -11,6 +11,7 @@ struct commandRequest{
     char flags[12] = {0};
     char args[64] = {0};
     bool valid = false;
+    char desc[64] = {0};
     
 };
 #endif

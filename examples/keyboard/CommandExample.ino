@@ -1,7 +1,6 @@
 #include "Arduino.h"
 #include "DueHardwareVGA.h"
 
-VRAM graphics;
 char cmdBuf[256];
 uint16_t cmdBufIdx = 0;
 unsigned long updateFrequency = 200;

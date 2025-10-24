@@ -65,7 +65,7 @@ inline static returnResult startApp(startAddress appStartAddress, TPort port) {
     else {
         if (*DBL_TAP_PTR != DBL_TAP_MAGIC_QUICK_BOOT) {
             *DBL_TAP_PTR = DBL_TAP_MAGIC;
-            delay(500);
+            delay(50);
         }
         *DBL_TAP_PTR = 0;
     }
@@ -75,7 +75,7 @@ inline static returnResult startApp(startAddress appStartAddress, TPort port) {
     mouse.~VGAMouse(); //drop due interruptconsole
 
     port.print("Jumping into application at 0x"); port.println(app_start_address, HEX);
-    delay(100);
+    delay(20);
     port.end();    
     /* Rebase the Stack Pointer */
     // __set_MSP(*(uint32_t *)appStartAddress);

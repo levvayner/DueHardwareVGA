@@ -37,7 +37,7 @@ ConsoleKeyPress ps2KeyboardController::getKey()
             _mode = 2;
             _c &= 0xFF;
             //adjust space and enter keys to be ascii text
-            if(kp.isFunctionKey && ((_c & 0xFF ) == PS2_KEY_SPACE || (_c & 0xFF ) == PS2_KEY_ENTER)){
+            if(! kp.action && kp.isFunctionKey && (_c == PS2_KEY_SPACE || _c  == PS2_KEY_ENTER)){
                 kp.isFunctionKey = false;
             }
             if(_entryMode == EntryMode::modeConsole){

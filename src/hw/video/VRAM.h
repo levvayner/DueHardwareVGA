@@ -1,122 +1,18 @@
 #ifndef _V_RAM_H
 #define _V_RAM_H
 #include "SRAM.h"
+#include "VRAMSettings.h"
 #include "sw/Color.h"
 #include "sw/Chars.h"
-
-
-struct Point{
-    int x;
-    int y;
-    Point(): x(0), y(0){};
-    Point(int x, int y){ this->x = x; this->y = y;}
-
-    bool operator ==(Point& other){
-        return x == other.x && y == other.y;
-    }
-    bool operator !=(Point& other){
-        return x != other.x || y != other.y;
-    }
-};
-
-struct TriangleLeg{
-    int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-    float slope = 0;
-    float yIntercept = 0;
-    bool isVertical = false;
-    bool isHorizontal = false;
-    TriangleLeg(){
-
-    }
-
-    TriangleLeg(int x1, int y1, int x2, int y2){
-        this->x1 = x1;
-        this->x2 = x2;
-        this->y1 = y1;
-        this->y2 = y2;
-        isVertical = x1 == x2;
-        isHorizontal = y1 == y2;
-        
-        slope = isHorizontal ? 0 : isVertical ? 0 : ((float)(max(y1, y2) - min(y1, y2)) / (float)(y1 > y2? x1 - x2 : x2 - x1));
-        yIntercept = -1*(slope * x1 - y1);
-    }
-};
-
-struct TrinagleLegDrawObject : public TriangleLeg{
-    int rowX = 0, prevX  = 0;
-    TrinagleLegDrawObject(int x1, int y1, int x2, int y2): TriangleLeg(x1, y1, x2, y2){  
-        rowX = x1;
-        prevX = x2;
-    }
-    
-};
-
-struct Rectangle{
-    public:
-    int16_t x1;
-    int16_t x2;
-    int16_t y1;
-    int16_t y2;
-
-    int16_t width(){ return x2 > x1 ? x2 - x1 : x1 - x2; } // abs(x2 - x1);}
-    int16_t height(){ return y2 > y1 ? y2 - y1: y1 - y2; } // abs(y2 - y1);}
-    int32_t size() { return width() * height();}
-
-    Rectangle(Point p1, Point p2){
-        x1 = p1.x;
-        x2 = p2.x;
-        y1 = p1.y;
-        y2 = p2.y;
-    }
-    Rectangle( int16_t x1, int16_t y1, int16_t x2, int16_t y2){
-        this->x1 = x1;
-        this->x2 = x2;
-        this->y1 = y1;
-        this->y2 = y2;
-    }
-};
-
-
-struct VRAMSettings{
-    uint16_t screenWidth = 432;
-    uint16_t screenHeight = 240;
-    uint16_t charWidth = 6;
-    uint16_t charHeight = 9;
-    uint16_t screenBufferHeight = 3000;
-    uint16_t horizontalBits = 10;
-    VRAMSettings(uint16_t width, uint16_t height, uint8_t charWidth = 6, uint8_t charHeight = 9, uint8_t horizontalBits = 10){
-        screenWidth = width;
-        screenHeight = height;
-        this->charWidth = charWidth;
-        this->charHeight = charHeight;
-        this->horizontalBits = horizontalBits;
-    }
-    bool operator ==(const VRAMSettings& other){
-       return this->charHeight == other.charHeight &&
-            this->charWidth == other.charWidth &&
-            this->horizontalBits == other.horizontalBits &&
-            this->screenWidth == other.screenWidth &&
-            this->screenHeight == other.screenHeight &&
-            this->screenBufferHeight == other.screenBufferHeight;
-    }
-    bool operator !=(const VRAMSettings& other){
-        return this->charHeight != other.charHeight ||
-            this->charWidth != other.charWidth ||
-            this->horizontalBits != other.horizontalBits ||
-            this->screenWidth != other.screenWidth ||
-            this->screenHeight != other.screenHeight ||
-            this->screenBufferHeight != other.screenBufferHeight;
-    }
-};
-
-
+#include "sw/2D/Graphics2D.h"
+#include "sw/3D/Graphics3D.h"
 
 
 
 class VRAM : public SRAM{
     
     public:
-    VRAMSettings settings = VRAMSettings(432, 240);
+    VRAMSettings settings = VRAMSettings(800, 600);
 
     VRAM();
     ~VRAM();
@@ -124,52 +20,54 @@ class VRAM : public SRAM{
     void begin();
     void end();
 
+    bool isWaiting();
+    bool setReady(bool clear = false);
     
 
-    virtual void drawText(int x, int y, const char * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
-    virtual void drawText(int x, int y, const char * text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
+    virtual bool drawText(int x, int y, const char * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
+    virtual bool drawText(int x, int y, const char * text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
 
-    virtual inline void drawText(int x, int y, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
-        drawText(x, y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
+    virtual inline bool drawText(int x, int y, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
+        return drawText(x, y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
     }
 
-    virtual inline void drawText(Point location, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
-        drawText(location.x, location.y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
+    virtual inline bool drawText(Point2D location, uint8_t * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
+        return drawText(location.x, location.y, (const char*)text, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
     }
     
-    virtual void drawText(int x, int y, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
-    virtual void drawText(int x, int y, char text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
+    virtual bool drawText(int x, int y, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
+    virtual bool drawText(int x, int y, char text, Color color = Color::WHITE, Color backgroundColor = Color::BLACK, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
     
-    virtual void drawText(Point location, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
-        drawText(location.x, location.y, text, color, backgroundColor, useFrameBuffer, busyType );
+    virtual bool drawText(Point2D location, char text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
+        return drawText(location.x, location.y, text, color, backgroundColor, useFrameBuffer, busyType );
     }
     
-    virtual inline void drawText(int x, int y, unsigned long value, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
+    virtual inline bool drawText(int x, int y, unsigned long value, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid){
         
         memset(_buf,0,sizeof(_buf));
         sprintf(_buf, "%lu", value);
-        drawText(x, y, _buf, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
+        return drawText(x, y, _buf, color, backgroundColor, clearBackground, useFrameBuffer, busyType);
     }
     
 
-    virtual void drawTextToBuffer(const char * text, byte* buffer,  uint16_t stride, byte color);
-    virtual void drawTextToBuffer(const char * text, const byte * colors, byte* buffer,  uint16_t stride);
+    virtual bool drawTextToBuffer(const char * text, byte* buffer,  uint16_t stride, byte color);
+    virtual bool drawTextToBuffer(const char * text, const byte * colors, byte* buffer,  uint16_t stride);
 
-    virtual void drawBuffer(int x, int y, int width, int height, const byte* buffer, BusyType busyType = btInvalid);
+    virtual bool drawBuffer(int x, int y, int width, int height, const byte* buffer, BusyType busyType = btInvalid);
 
     virtual bool drawPixel(int x, int y, byte color = 0xFF, BusyType busyType = btInvalid);
     virtual bool drawPixel(int x, int y, Color color, BusyType busyType = btInvalid);
 
     virtual uint8_t readPixel(int x, int y, BusyType busyType = btInvalid);
-    virtual void readBuffer(int x, int y, int width, int height, uint8_t * buffer, BusyType busyType = btInvalid);
-    virtual inline void readBuffer(Point location, int width, int height, uint8_t * buffer, BusyType busyType = btInvalid){
-        readBuffer(location.x, location.y, width, height, buffer, busyType);
+    virtual bool readBuffer(int x, int y, int width, int height, uint8_t * buffer, BusyType busyType = btInvalid);
+    virtual inline bool readBuffer(Point2D location, int width, int height, uint8_t * buffer, BusyType busyType = btInvalid){
+        return readBuffer(location.x, location.y, width, height, buffer, busyType);
     }
 
     virtual bool drawLine(int x1, int y1, int x2, int y2, byte color = 0xFF, BusyType busyType = btInvalid);
-    virtual bool drawLine (Point start, Point end, byte color, BusyType busyType = btInvalid);
+    virtual bool drawLine (Point2D start, Point2D end, byte color, BusyType busyType = btInvalid);
     virtual bool drawLine(int x1, int y1, int x2, int y2, Color color = Color::WHITE, BusyType busyType = btInvalid);
-    virtual bool drawLine (Point start, Point end, Color color = Color::WHITE, BusyType busyType = btInvalid);
+    virtual bool drawLine (Point2D start, Point2D end, Color color = Color::WHITE, BusyType busyType = btInvalid);
 
     virtual bool drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, byte color = 0xFF);
     virtual bool drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, Color color)
@@ -185,14 +83,14 @@ class VRAM : public SRAM{
     }
 
     virtual bool drawRectangle(int x1, int y1, int width, int height, byte color = 0xFF, BusyType busyType = btInvalid);
-    virtual bool drawRectangle(Point topLeft, Point bottomRight, byte color = 0xFF, BusyType busyType = btInvalid);
+    virtual bool drawRectangle(Point2D topLeft, Point2D bottomRight, byte color = 0xFF, BusyType busyType = btInvalid);
     virtual bool drawRectangle(int x1, int y1, int width, int height, Color color = Color::WHITE, BusyType busyType = btInvalid);
-    virtual bool drawRectangle(Point topLeft, Point bottomRight, Color color = Color::WHITE, BusyType busyType = btInvalid);
+    virtual bool drawRectangle(Point2D topLeft, Point2D bottomRight, Color color = Color::WHITE, BusyType busyType = btInvalid);
 
     virtual bool fillRectangle(int x1, int y1, int width, int height, byte color = 0xFF, BusyType busyType = btInvalid);
     virtual bool fillRectangle(int x1, int y1, int width, int height,  Color color =Color::WHITE, BusyType busyType = btInvalid);
-    virtual bool fillRectangle(Point topLeft, Point bottomRight, byte color = 0xFF, BusyType busyType = btInvalid);
-    virtual bool fillRectangle(Point topLeft, Point bottomRight, Color color =Color::WHITE, BusyType busyType = btInvalid);
+    virtual bool fillRectangle(Point2D topLeft, Point2D bottomRight, byte color = 0xFF, BusyType busyType = btInvalid);
+    virtual bool fillRectangle(Point2D topLeft, Point2D bottomRight, Color color =Color::WHITE, BusyType busyType = btInvalid);
 
     virtual bool drawCircle(int centerX, int centerY, int radius, byte color = 0xFF, BusyType busyType = btInvalid);
     virtual inline bool drawCircle(int centerX, int centerY, int radius, Color color = Color::WHITE, BusyType busyType = btInvalid){
@@ -209,22 +107,22 @@ class VRAM : public SRAM{
         return fillCircle(x, y, radius, color.ToByte(), busyType);
     }
 
-    virtual void drawOval(int centerX, int centerY, int width, int height, byte color = Color::WHITE, BusyType busyType = btInvalid);
-    inline virtual void drawOval(int centerX, int centerY, int width, int height, Color color = Color::WHITE, BusyType busyType = btInvalid){
-        drawOval(centerX, centerY, width, height, color.ToByte(), busyType);
+    virtual bool drawOval(int centerX, int centerY, int width, int height, byte color = Color::WHITE, BusyType busyType = btInvalid);
+    inline virtual bool drawOval(int centerX, int centerY, int width, int height, Color color = Color::WHITE, BusyType busyType = btInvalid){
+        return drawOval(centerX, centerY, width, height, color.ToByte(), busyType);
     }
 
-    virtual void fillOval(int centerX, int centerY, int width, int height, byte color = Color::WHITE, BusyType busyType = btInvalid);
+    virtual bool fillOval(int centerX, int centerY, int width, int height, byte color = Color::WHITE, BusyType busyType = btInvalid);
     
 
     virtual inline bool clear(int x1 = 0, int y1 = 0, int width = 0, int height = 0, BusyType busyType = btInvalid){
         if(width == 0) width = settings.screenWidth - x1 + 2;
         if(height == 0) height = settings.screenHeight - y1 + 2;
-        return fillRectangle(x1, y1, width, height, Color::BLACK, busyType);
+        return fillRectangle(x1, y1, width, height, settings.backgroundColor, busyType);
     }
 
     /// @brief renders frame buffer to screen (writes to ram)
-    virtual void render();
+    virtual bool render();
 
 
     virtual inline void SetRenderMode(BusyType waitType){ _waitType = waitType;}

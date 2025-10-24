@@ -16,9 +16,9 @@ class Color {
     inline uint8_t Blue(){ return _blue;}
 
     inline void FromByte(uint8_t color){
-        _red = (color & 0x7);
-        _green = (color >> 3) & 0x7;
-        _blue = (color >> 6) & 0x3;
+        _red = (color >> 5) & 0x7;
+        _green = (color >> 2) & 0x7;
+        _blue = color & 0x3;
     }
 
     inline uint8_t ToByte(){ return (_red << 5) | ((_green & 0x7) << 2) | (_blue & 0x3);}
@@ -31,7 +31,7 @@ class Color {
     const static uint8_t GRAY = 210;
     const static uint8_t BLACK = 0x0;
     const static uint8_t GREEN = 0x7 << 3;
-    const static uint8_t BLUE = 0x3 << 6 ;
+    const static uint8_t BLUE = 0x3;
     const static uint8_t YELLOW  = 252;
     const static uint8_t GOLD = 216;
     const static uint8_t ORANGE = 237;    

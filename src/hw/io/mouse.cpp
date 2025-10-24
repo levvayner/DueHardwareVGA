@@ -1,11 +1,14 @@
 #include "mouse.h"
+#if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
 USBHost usb;
+#endif
 VGAMouse mouse;
 extern char buf[64];
 void vgaMouseInputEventHandler(){
     mouse.onTick();
 }
 
+#if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
 void mouseMoved(){   
     
     auto usbMouse = *mouse.mouseUsb();
@@ -17,7 +20,7 @@ void mouseMoved(){
     // );
     // Serial.println(buf);
 
-    mouse.setLocation(newX, newY);
+    mouse.setPosition(newX, newY);
     if(mouse.onMouseMove != nullptr)
         mouse.onMouseMove(newX, newY);    
 }
@@ -41,12 +44,12 @@ void mouseDragged(){
     //    newX, newY
     // );
     // Serial.println(buf);
-    //mouse.setLocation(newX, newY);
+    //mouse.setPosition(newX, newY);
     if(mouse.onMouseDrag != nullptr)
         mouse.onMouseDrag(newX, newY); 
     
 }
-
+#endif
 void VGAMouse::begin(uint16_t intervalMs)
 {   
     if(!_initializedPs2){
@@ -112,6 +115,11 @@ void VGAMouse::onTick()
         //ps2
         _lastData =_mouse->readData();
         buttonClicked = _lastData.status & 0x7;
+
+        if(_lastData.wheel != 0){
+            if(onWheel != nullptr)
+                onWheel(MouseWheelArgs(_mouseLocation, _lastData.wheel));
+        }
         
         pendingEvent = buttonClicked > 0; //any lower 3 bits set
         pendingMove = _lastData.position.x != 0 || _lastData.position.y != 0;
@@ -137,7 +145,7 @@ void VGAMouse::onTick()
 
     if(pendingMove){
         if(!_pendingMove) // update previous location is not already pending a move
-            _previousLocation = Point(_mouseLocation.x, _mouseLocation.y);
+            _previousLocation = Point2D(_mouseLocation.x, _mouseLocation.y);
         //update position
         if(_lastData.position.x > 127 ){
             _mouseLocation.x -= (256 - _lastData.position.x );
@@ -167,6 +175,7 @@ void VGAMouse::onTick()
 
 void VGAMouse::update()
 {
+    if(_pointer == pointerNone) return;
     if(!_initializedPs2 && !_initializedUsb) return;
     if(_pendingEvent || _pendingMove || _pendingRequestRedraw){
         //write out the old

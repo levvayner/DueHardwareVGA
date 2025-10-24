@@ -1,8 +1,6 @@
 #include "Arduino.h"
 #include "hw/video/VRAM.h"
 
-VRAM graphics;
-
 unsigned long updateFrequency = 1000;
 unsigned long lastUpdated = 0;
 unsigned long checkingTime = 0;

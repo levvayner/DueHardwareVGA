@@ -6,6 +6,7 @@ class command{
     public:
     char flags[12];
     char name[16];
+    char desc[64];
     char context[16];
     void(*onExecute)(commandRequest request);
 

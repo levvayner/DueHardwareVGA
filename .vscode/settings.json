@@ -3,6 +3,12 @@
         "*.erd": "json",
         "*.vuerd": "json",
         "typeinfo": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "cmath": "cpp",
+        "limits": "cpp",
+        "valarray": "cpp",
+        "algorithm": "cpp",
+        "cstdlib": "cpp",
+        "basic_definitions": "cpp"
     }
 }

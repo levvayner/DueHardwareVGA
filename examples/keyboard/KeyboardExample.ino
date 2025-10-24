@@ -18,7 +18,7 @@ void consoleProcessKey(uint8_t data){
 
 void setup(){
     Serial.begin(115200);
-    Serial.println("Started Due Hardware VGA");
+    Serial.println("Started Due Hardware VGA - Keyboard Demo");
     keyboard.begin(Serial,50);        
     keyboard.onKeyDown = consoleProcessKey;
     

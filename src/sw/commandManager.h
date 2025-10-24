@@ -5,9 +5,10 @@
 
 class commandManager{
     public:
-    uint8_t registerCommand(const char* context, const char * name, const char* flags, void (*callback)(commandRequest request) );
+    uint8_t registerCommand(const char* context, const char * name, const char* flags, void (*callback)(commandRequest request), const char * description = "" );
     command* getCommand(const char * name);
     inline command* getCommand(uint8_t index){ return &_commands[index];}
+    command* getCommands();
     commandRequest buildCommand(const char* cmd);
     inline void clearCommands(){ memset(_commands,0, sizeof(commandManager)); _idx = 0;}
     void clearCommands(const char* context);

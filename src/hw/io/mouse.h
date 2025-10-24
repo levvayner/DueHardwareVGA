@@ -7,18 +7,28 @@
 #include "../Pins.h"
 
 #include "PS2Mouse.h"
+
 #include "usb.h"
 #define DPI 4
 enum MousePointer{
     pointerFat = 0,
     pointerSkinny = 1,
     pointerSquare = 2,
-    pointerSmall = 3
+    pointerSmall = 3,
+    pointerNone = 4
 };
+#if not defined(MouseButton)
+enum MouseButton {
+	LEFT_BUTTON   = 0x01,
+	MIDDLE_BUTTON = 0x02,
+	RIGHT_BUTTON  = 0x04
+};
+#endif
+
 struct MouseClickArgs{
-    Point location;
+    Point2D location;
     uint8_t button;
-    MouseClickArgs(Point location, uint8_t button){
+    MouseClickArgs(Point2D location, uint8_t button){
         this->location = location;
         this->button = button;
     }
@@ -29,6 +39,15 @@ struct MouseClickArgs{
         this->button = button;
     }
 };
+struct MouseWheelArgs{
+    Point2D location;
+    int16_t wheelScroll;
+    MouseWheelArgs(Point2D location, int16_t wheelScroll){
+        this->location = location;
+        this->wheelScroll = wheelScroll;
+    }
+};
+
 class VGAMouse{
     public:
 
@@ -38,7 +57,9 @@ class VGAMouse{
         }
         _mouseReadTimer = nullptr;
         _mouse = nullptr;
+        #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
         _mouseUsb = nullptr;
+        #endif
     }
     //public lifecycle events
 
@@ -53,10 +74,11 @@ class VGAMouse{
     void(*onMouseMove)(int16_t x, int16_t y);
     void(*onMouseDrag)(int16_t x, int16_t y);    
     void(*onClick)(MouseClickArgs args);
+    void(*onWheel)(MouseWheelArgs args);
     
     
-    inline Point location(){ return _mouseLocation;}
-    inline void setLocation(uint16_t x, uint16_t y){ 
+    inline Point2D location(){ return _mouseLocation;}
+    inline void setPosition(uint16_t x, uint16_t y){ 
         _mouseLocation.x = (int)x; 
         _mouseLocation.y = (int)y;
         _pendingMove = true;
@@ -67,11 +89,11 @@ class VGAMouse{
     virtual inline void RequestRedraw(){
         _pendingRequestRedraw = true;
     }
-
+    #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
     MouseController * mouseUsb(){
         return _mouseUsb;
     }
-    
+    #endif
     
 
     protected:
@@ -83,7 +105,7 @@ class VGAMouse{
 
     private:
     
-    Point _mouseLocation, _previousLocation;
+    Point2D _mouseLocation, _previousLocation;
     int _zoom = 8;
     char key = 0;
     
@@ -101,7 +123,9 @@ class VGAMouse{
     DueTimer * _mouseReadTimer;
 
     PS2Mouse *_mouse = nullptr;
+    #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
     MouseController * _mouseUsb = nullptr;
+    #endif
     MouseData _lastData;
     bool _pendingEvent = false;
     bool _pendingMove = false;
@@ -109,5 +133,7 @@ class VGAMouse{
 
 };
 extern VGAMouse mouse;
+#if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
 extern USBHost usb;
+#endif
 #endif

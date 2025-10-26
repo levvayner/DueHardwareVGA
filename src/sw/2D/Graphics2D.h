@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "sw/Color.h"
+#include <ShapeList.h>
 enum FillStyle{
     Outline = 0,
     Fill = 1
@@ -48,11 +49,12 @@ class Shape2D {
 class Circle2D : public Shape2D{
     public:
     uint16_t radius;
-    Circle2D(int16_t x, int16_t y, uint16_t radius){
+    Circle2D(int16_t x, int16_t y, uint16_t radius, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 1;
         shape = Circle;
         vertecies = new Point2D[1]; 
         vertecies[0] = Point2D(x, y);
+        this->style = style;
         //vertecies.push_back(Point2D(x, y));
         this->radius = radius;
     }
@@ -62,9 +64,10 @@ class Oval2D : public Shape2D{
     public:
     uint16_t radiusX;
     uint16_t radiusY;
-    Oval2D(int16_t x, int16_t y, uint16_t radiusX, uint16_t radiuxY){
+    Oval2D(int16_t x, int16_t y, uint16_t radiusX, uint16_t radiusY, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 1;
         shape = Oval;
+        this->style = style;        
         vertecies = new Point2D[1]; 
         vertecies[0] = Point2D(x, y);
         this->radiusX = radiusX;
@@ -77,9 +80,10 @@ class Arc2D : public Shape2D{
     uint16_t radius;
     uint8_t startDeg;
     uint8_t endDeg;
-    Arc2D(int16_t x, int16_t y, uint16_t radius, uint8_t startDeg, uint8_t endDeg){
+    Arc2D(int16_t x, int16_t y, uint16_t radius, uint8_t startDeg, uint8_t endDeg, FillStyle style = FillStyle::Outline){
         this->numberOfVerticies = 1;
         shape = Arc;
+        this->style = style;
         vertecies = new Point2D[2]; 
         vertecies[0] = Point2D(x, y);
         this->radius = radius;
@@ -138,9 +142,10 @@ class Triangle2D: public Shape2D{
     Point2D p1() {return vertecies[0];}
     Point2D p2() {return vertecies[1];}
     Point2D p3() {return vertecies[2];}
-    Triangle2D(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3){
+    Triangle2D(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 3;
         shape = Triangle;
+        this->style = style;
         vertecies = new Point2D[3]; 
         vertecies[0] = Point2D(x1, y1);
         vertecies[1] = Point2D(x2, y2);
@@ -152,23 +157,25 @@ class Rectangle2D : public Shape2D{
     public:
     int16_t x1() {return vertecies[0].x;};
     int16_t x2() {return vertecies[1].x;};
-    int16_t y1() {return vertecies[0].y;};
-    int16_t y2() {return vertecies[1].y;};
+    int16_t width() {return vertecies[0].y;};
+    int16_t height() {return vertecies[1].y;};
 
-    int16_t width(){ return x2() > vertecies[1].x ? vertecies[1].x - vertecies[0].x : vertecies[0].x - vertecies[1].x; } // abs(x2 - x1);}
-    int16_t height(){ return vertecies[1].y > vertecies[0].y ? vertecies[1].y - vertecies[0].y: vertecies[0].y - vertecies[1].y; } // abs(y2 - y1);}
+    // int16_t width(){ return x2() > vertecies[1].x ? vertecies[1].x - vertecies[0].x : vertecies[0].x - vertecies[1].x; } // abs(x2 - x1);}
+    // int16_t height(){ return vertecies[1].y > vertecies[0].y ? vertecies[1].y - vertecies[0].y: vertecies[0].y - vertecies[1].y; } // abs(y2 - y1);}
     int32_t size() { return width() * height();}
 
-    Rectangle2D(Point2D p1, Point2D p2){
+    Rectangle2D(Point2D p1, Point2D p2, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 2;
         shape = Rectangle;
+        this->style = style;
         vertecies = new Point2D[2];
         vertecies[0] = p1;
         vertecies[1] = p2;        
     }
-    Rectangle2D( int16_t x1, int16_t y1, int16_t x2, int16_t y2){
+    Rectangle2D( int16_t x1, int16_t y1, int16_t x2, int16_t y2, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 2;
         shape = Rectangle;
+        this->style = style;
         vertecies = new Point2D[2];
         vertecies[0] = Point2D(x1,y1);
         vertecies[1] = Point2D(x2,y2);                
@@ -177,9 +184,10 @@ class Rectangle2D : public Shape2D{
 
 class Polygon2D : public Shape2D{  
     public:
-    Polygon2D(Point2D* vertecies, uint8_t size){
+    Polygon2D(Point2D* vertecies, uint8_t size, FillStyle style = FillStyle::Outline){
         this->numberOfVerticies = size;
         shape = Polygon;
+        this->style = style;
         vertecies = new Point2D[size];
         memcpy(this->vertecies, vertecies, size);
     }
@@ -190,26 +198,54 @@ class Texture2D{
     public:
     uint8_t width;
     uint8_t height;
-    uint8_t colors[64];
+    uint8_t *colors;
     
     Texture2D(uint8_t width, uint8_t height)
     {
         this->width = width;
         this->height = height;   
+        colors = new uint8_t[width * height];
         memset(this->colors,Color::BLACK, width*height);    
     }
     Texture2D(uint8_t width, uint8_t height, uint8_t* data)
     {
         this->width = width;
         this->height = height;        
+        colors = new uint8_t[width * height];
         memcpy(this->colors,data, width*height); 
+    }  
+    //copy contructor
+    Texture2D(const Texture2D& o)
+        : width(o.width),
+          height(o.height)
+    {
+        colors = new uint8_t[width * height];
+        memcpy(this->colors,o.colors, width*height);
+        Serial.println("Texture 2D deep copied");
+    }
+    // move constructor
+    Texture2D(Texture2D&& o) noexcept
+        : width(o.width),
+          height(o.height)
+    {
+        colors = new uint8_t[width * height];
+        memcpy(this->colors,o.colors, width*height);
+        Serial.println("Texture 2D copied");
+    }
+    
+    void Fill(uint8_t color){
+        memset(this->colors,color, width*height);    
     }   
+    ~Texture2D(){
+        delete[] colors;
+    }
 };
 
 struct GraphicsObject2D{
 
     Shape2D* shape;
     Texture2D* texture;
+    uint8_t color;
     bool drawnOnMem1 = false;
     bool drawnOnMem2 = false;
 
@@ -217,10 +253,55 @@ struct GraphicsObject2D{
         this->shape = shape;
         this->texture = texture;
     }
+    // copy constructor (shallow copy of pointers, copies flags)
+    GraphicsObject2D(const GraphicsObject2D& o)
+        : shape(o.shape),
+          texture(o.texture),
+          drawnOnMem1(o.drawnOnMem1),
+          drawnOnMem2(o.drawnOnMem2)
+    {}
+
+    // copy assignment (shallow copy)
+    GraphicsObject2D& operator=(const GraphicsObject2D& o){
+        if (this == &o) return *this;
+        shape = o.shape;
+        texture = o.texture;
+        drawnOnMem1 = o.drawnOnMem1;
+        drawnOnMem2 = o.drawnOnMem2;
+        return *this;
+    }
+
+    // move constructor
+    GraphicsObject2D(GraphicsObject2D&& o) noexcept
+        : shape(o.shape),
+          texture(o.texture),
+          drawnOnMem1(o.drawnOnMem1),
+          drawnOnMem2(o.drawnOnMem2)
+    {
+        o.shape = nullptr;
+        o.texture = nullptr;
+        o.drawnOnMem1 = false;
+        o.drawnOnMem2 = false;
+        Serial.println("Graphics 2D copied");
+    }
+
+    // move assignment
+    GraphicsObject2D& operator=(GraphicsObject2D&& o) noexcept {
+        if (this == &o) return *this;
+        shape = o.shape;
+        texture = o.texture;
+        drawnOnMem1 = o.drawnOnMem1;
+        drawnOnMem2 = o.drawnOnMem2;
+        o.shape = nullptr;
+        o.texture = nullptr;
+        o.drawnOnMem1 = false;
+        o.drawnOnMem2 = false;
+        return *this;
+    }
 };
 
 class Graphics2D{
     public: 
-    GraphicsObject2D*  objects;
+    ShapeList<GraphicsObject2D>* shapeList;    
     int objectCount;
 };

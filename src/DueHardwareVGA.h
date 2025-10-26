@@ -8,6 +8,7 @@
 #include "hw/io/usb.h"
 #include "hw/video/SRAM.h"
 #include "hw/video/VRAM.h"
+#include "hw/video/GPU.h"
 #include "sw/commandManager.h"
 #include "sw/Bitmap.h"
 #include "sw/Chars.h"

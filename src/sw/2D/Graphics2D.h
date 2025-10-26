@@ -188,13 +188,13 @@ class Polygon2D : public Shape2D{
         this->numberOfVerticies = size;
         shape = Polygon;
         this->style = style;
-        vertecies = new Point2D[size];
+        this->vertecies = new Point2D[size];
         memcpy(this->vertecies, vertecies, size);
     }
 };
 
 
-class Texture2D{
+struct Texture2D{
     public:
     uint8_t width;
     uint8_t height;
@@ -207,6 +207,13 @@ class Texture2D{
         colors = new uint8_t[width * height];
         memset(this->colors,Color::BLACK, width*height);    
     }
+    Texture2D(uint8_t width, uint8_t height, uint8_t color)
+    {
+        this->width = width;
+        this->height = height;        
+        colors = new uint8_t[width * height];
+        memset(this->colors, color, width * height);
+    }  
     Texture2D(uint8_t width, uint8_t height, uint8_t* data)
     {
         this->width = width;
@@ -226,11 +233,11 @@ class Texture2D{
     // move constructor
     Texture2D(Texture2D&& o) noexcept
         : width(o.width),
-          height(o.height)
+          height(o.height),
+          colors(o.colors)
     {
-        colors = new uint8_t[width * height];
-        memcpy(this->colors,o.colors, width*height);
-        Serial.println("Texture 2D copied");
+        o.colors = nullptr;
+        Serial.println("Texture 2D moved");
     }
     
     void Fill(uint8_t color){
@@ -249,9 +256,21 @@ struct GraphicsObject2D{
     bool drawnOnMem1 = false;
     bool drawnOnMem2 = false;
 
+    //texture by pointer
     GraphicsObject2D(Shape2D* shape, Texture2D* texture){
         this->shape = shape;
         this->texture = texture;
+    }
+    //texture by value
+    GraphicsObject2D(Shape2D* shape, Texture2D texture){
+        this->shape = shape;
+        this->texture = new Texture2D(texture.width, texture.height, texture.colors);
+    }
+    //shape and texture by value
+    GraphicsObject2D(Shape2D shape, Texture2D texture){
+        this->shape = new Shape2D(shape);
+        this->texture = new Texture2D(texture.width, texture.height, texture.colors);
+        Serial.println("GraphicsObject2D created by value");
     }
     // copy constructor (shallow copy of pointers, copies flags)
     GraphicsObject2D(const GraphicsObject2D& o)
@@ -260,6 +279,7 @@ struct GraphicsObject2D{
           drawnOnMem1(o.drawnOnMem1),
           drawnOnMem2(o.drawnOnMem2)
     {}
+    
 
     // copy assignment (shallow copy)
     GraphicsObject2D& operator=(const GraphicsObject2D& o){
@@ -282,7 +302,7 @@ struct GraphicsObject2D{
         o.texture = nullptr;
         o.drawnOnMem1 = false;
         o.drawnOnMem2 = false;
-        Serial.println("Graphics 2D copied");
+        //Serial.println("Graphics 2D copied");
     }
 
     // move assignment
@@ -298,10 +318,20 @@ struct GraphicsObject2D{
         o.drawnOnMem2 = false;
         return *this;
     }
+    ~GraphicsObject2D(){
+        Serial.println("GraphicsObject2D destroyed");
+        if (shape != nullptr) {
+            shape->vertecies != nullptr ? free(shape->vertecies) : void();
+            delete shape;
+        }
+        if (texture != nullptr){
+            texture->colors != nullptr ? free(texture->colors) : void();
+            delete texture;
+        }
+    }
 };
 
 class Graphics2D{
     public: 
-    ShapeList<GraphicsObject2D>* shapeList;    
-    int objectCount;
+    ShapeList<GraphicsObject2D>* shapeList = new ShapeList<GraphicsObject2D>(); 
 };

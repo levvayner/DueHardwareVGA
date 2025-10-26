@@ -118,6 +118,7 @@ class VRAM : public SRAM{
     virtual inline bool clear(int x1 = 0, int y1 = 0, int width = 0, int height = 0, BusyType busyType = btInvalid){
         if(width == 0) width = settings.screenWidth - x1 + 2;
         if(height == 0) height = settings.screenHeight - y1 + 2;
+        Serial.print("Clearing area at "); Serial.print(x1); Serial.print(", "); Serial.print(y1); Serial.print(" width: "); Serial.print(width); Serial.print(" height: "); Serial.print(height); Serial.print(" with color: "); Serial.println(settings.backgroundColor);
         return fillRectangle(x1, y1, width, height, settings.backgroundColor, busyType);
     }
 

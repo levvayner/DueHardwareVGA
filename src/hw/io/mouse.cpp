@@ -1,8 +1,10 @@
 #include "mouse.h"
+#include <hw/video/GPU.h>
 #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
 USBHost usb;
 #endif
 VGAMouse mouse;
+extern GPU gpu;
 extern char buf[64];
 void vgaMouseInputEventHandler(){
     mouse.onTick();
@@ -61,6 +63,9 @@ void VGAMouse::begin(uint16_t intervalMs)
             _initializedPs2 = true;
             Serial.println("Initialized PS2 Mouse");
         }
+        _mouseArea = new Rectangle2D(_mouseLocation.x, _mouseLocation.y, 8,8);
+        _mouseAreaObject =  new GraphicsObject2D( _mouseArea, new Texture2D(8,8,_mouseCursorBuffer));
+        gpu.Add2DObject(*_mouseAreaObject);
     }
     #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
     if(!_initializedUsb){
@@ -99,7 +104,8 @@ void VGAMouse::drawCursor(int x, int y, int width, int height)
         }
     }
     if(_mouseCursorBuffer != nullptr){
-            graphics.drawBuffer(_mouseLocation.x, _mouseLocation.y, width,height, _mouseCursorBuffer, btVertical);
+        ;    
+        //    graphics.drawBuffer(_mouseLocation.x, _mouseLocation.y, width,height, _mouseCursorBuffer, btVertical);
         
     }
 }
@@ -144,6 +150,7 @@ void VGAMouse::onTick()
     }
 
     if(pendingMove){
+        auto settings = gpu.GetSettings();
         if(!_pendingMove) // update previous location is not already pending a move
             _previousLocation = Point2D(_mouseLocation.x, _mouseLocation.y);
         //update position
@@ -153,13 +160,13 @@ void VGAMouse::onTick()
                 _mouseLocation.x = 0;
         }else{
             _mouseLocation.x += _lastData.position.x;
-            if(_mouseLocation.x > graphics.settings.screenWidth) 
-                _mouseLocation.x = graphics.settings.screenWidth - 2;
+            if(_mouseLocation.x > settings.screenWidth) 
+                _mouseLocation.x = settings.screenWidth - 2;
         }
         if(_lastData.position.y > 127){
             _mouseLocation.y += (256 - _lastData.position.y );
-            if(_mouseLocation.y > graphics.settings.screenHeight) 
-                _mouseLocation.y = graphics.settings.screenHeight - 2;        
+            if(_mouseLocation.y > settings.screenHeight) 
+                _mouseLocation.y = settings.screenHeight - 2;        
             
         }else{
             _mouseLocation.y -= _lastData.position.y;
@@ -180,15 +187,18 @@ void VGAMouse::update()
     if(_pendingEvent || _pendingMove || _pendingRequestRedraw){
         //write out the old
         if(mouseBuffer != nullptr){
-            
-            graphics.drawBuffer(_previousLocation.x, _previousLocation.y, _zoom, _zoom, mouseBuffer, btVertical);           
+            _mouseAreaObject->shape->vertecies[0].x = _mouseLocation.x;
+            _mouseAreaObject->shape->vertecies[0].y = _mouseLocation.y;
+            _mouseAreaObject->drawnOnMem1 = false;
+            _mouseAreaObject->drawnOnMem2 = false;
+            //graphics.drawBuffer(_previousLocation.x, _previousLocation.y, _zoom, _zoom, mouseBuffer, btVertical);           
         } else if(mouseBuffer == nullptr){         
             mouseBuffer = new uint8_t[_zoom*_zoom];        
         }
 
         if(_pendingMove)_previousLocation = _mouseLocation; //if we moved, update location
         //read in buffer
-        graphics.readBuffer(_mouseLocation, _zoom, _zoom, mouseBuffer, btVertical);
+        //graphics.readBuffer(_mouseLocation, _zoom, _zoom, mouseBuffer, btVertical);
 
         //draw cursor
         drawCursor(_mouseLocation.x, _mouseLocation.y, _zoom, _zoom);

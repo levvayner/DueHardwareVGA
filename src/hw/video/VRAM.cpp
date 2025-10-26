@@ -6,12 +6,7 @@ VRAMSettings resolution1(800, 600);
 VRAMSettings resolution2(320, 300);
 VRAM graphics;
 char buf[64];
-void clearReadySet(){
-    __isBufferReadySet = false;
-    digitalWrite(PIN_READY,LOW); 
-    //graphics.setReady(false);
-    //Serial.print(millis()); Serial.println("            Cleared ready");
-}
+
 
 VRAM::VRAM()
 {   
@@ -30,7 +25,7 @@ void VRAM::begin(){
     PIOC->PIO_ODR = PIO_PC25;
     PIOC->PIO_PUDR = PIO_PC25;
 
-    attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
+    //attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
 }
 void VRAM::end()
 {
@@ -267,8 +262,8 @@ bool VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, Busy
     #endif
     if(busyType == btInvalid) busyType = _waitType;
     for(int line=0;line < height;line++){
-        graphics.ReadBytes(
-            ((line + y) << graphics.settings.horizontalBits) + x,
+        ReadBytes(
+            ((line + y) << settings.horizontalBits) + x,
             buffer + (line*width), width,
             busyType
         );
@@ -364,8 +359,9 @@ bool VRAM::drawRectangle(int x1, int y1, int width, int height, byte color, Busy
 {
     #ifdef DOUBLE_BUFFER
    // while(ready_set) yield(); //not ready
-    #endif
+    #else
     if(busyType == btInvalid) busyType = _waitType;
+    #endif
     //TODO: clip to screen
     //draw buffered top and bottom
     if(width < 0 || height < 0) return false;
@@ -562,7 +558,7 @@ bool VRAM::render()
    // while(ready_set) yield(); //not ready
     #endif
     unsigned long startTime = millis();
-    Serial.print("Rendering frame .. ");
+   // Serial.print("Rendering frame .. ");
     for(uint16_t line = 0; line < settings.screenHeight; line++){
         WriteBytes(line << settings.horizontalBits, _frameBuffer + (line * settings.screenWidth), settings.screenWidth);
     }

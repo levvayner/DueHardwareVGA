@@ -106,6 +106,8 @@ class VGAMouse{
     private:
     
     Point2D _mouseLocation, _previousLocation;
+    Shape2D *_mouseArea;
+    GraphicsObject2D* _mouseAreaObject;
     int _zoom = 8;
     char key = 0;
     

@@ -36,7 +36,7 @@ class GPU
         // }
 
         void Set2DObjects(ShapeList<GraphicsObject2D>* list);
-        void Clear2DObjects();
+        void ClearObjects();
 
         /// Get the list of 2D objects
         ShapeList<GraphicsObject2D>*  Get2DObjects(){

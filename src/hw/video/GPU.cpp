@@ -100,19 +100,6 @@ void GPU::Render()
         }
     }    
     graphics.setReady();
-    
-    //2D graphics
-    // for(int idx=0;idx < graphics2D.objectCount; idx++){
-    // //for( GraphicsObject2D obj : graphics2D.objects){
-        
-    //     if(_activeBank == 0 && !(graphics2D.objects+ idx)->drawnOnMem1){
-    //         Draw2DObject((graphics2D.objects+ idx));
-    //         (graphics2D.objects+ idx)->drawnOnMem1 = true;
-    //     }
-    //     else if(_activeBank == 1 && !(graphics2D.objects+ idx)->drawnOnMem2){
-    //         (graphics2D.objects+ idx)->drawnOnMem2 = true;
-    //     }
-    // }
 }
 
 bool GPU::activeBank()
@@ -154,20 +141,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
             );
     }
     else if(obj->shape->shape == Rectangle){
-        #ifdef DEBUG_GPU
-        Serial.print("Drawing rectangle\n");
-        Serial.print("Top left: (");
-        Serial.print(obj->shape->vertecies[0].x);
-        Serial.print(", ");
-        Serial.print(obj->shape->vertecies[0].y);
-        Serial.print("), Bottom right: (");
-        Serial.print(obj->shape->vertecies[1].x);
-        Serial.print(", ");
-        Serial.print(obj->shape->vertecies[1].y);
-        Serial.print(")");
-        Serial.print(" with color:");
-        Serial.println(drawColor);
-        #endif
+       
         if(obj->shape->style == FillStyle::Outline){           
             graphics.drawRectangle(
                 obj->shape->vertecies[0],
@@ -245,39 +219,12 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         }
         
     }
-    //TODO: add polygon support
 
-    // if(Line2D* lPtr = dynamic_cast<Line2D*>(obj->shape)){
-    //     graphics.drawLine(lPtr->p1(), obj->shape->vertecies[1],obj->texture->colors[0]);
-    // }
-    // else if(Line2D* lPtr = dynamic_cast<Line2D*>(obj->shape)){
-    // }
-    // else if(Triangle2D* lPtr = dynamic_cast<Triangle2D*>(obj->shape)){
-    //     if(obj->shape->style == FillStyle::Outline)
-    //         graphics.drawTriangle(lPtr->p1().x, lPtr->p1().y , obj->shape->vertecies[1].x, obj->shape->vertecies[1].y, obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,obj->texture->colors[0]);
-    //     else if(obj->shape->style == FillStyle::Fill){
-    //         graphics.fillTriangle(lPtr->p1().x, lPtr->p1().y , obj->shape->vertecies[1].x, obj->shape->vertecies[1].y, obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,obj->texture->colors[0]);
-    //     }
-
-    // }
-    // else if(Rectangle2D* lPtr = dynamic_cast<Rectangle2D*>(obj->shape)){
-    // }
-    // else if(Circle2D* lPtr = dynamic_cast<Circle2D*>(obj->shape)){
-    // }
-    // else if(Oval2D* lPtr = dynamic_cast<Oval2D*>(obj->shape)){
-    // }
-    // else if(Arc2D* lPtr = dynamic_cast<Arc2D*>(obj->shape)){
-    // }
-    // else if(Line2D* lPtr = dynamic_cast<Line2D*>(obj->shape)){
-    // }
-
-    //Serial.println("Done drawing object");
 }
 void GPU::ClearScreen(){
     graphics.clear();
-    Clear2DObjects();
-    _isBank1Initialized = false;
-    _isBank2Initialized = false;
+    ClearObjects();
+    
 }
 void GPU::Set2DObjects(ShapeList<GraphicsObject2D>* list)
 {
@@ -301,8 +248,10 @@ void GPU::Set2DObjects(ShapeList<GraphicsObject2D>* list)
     list->clear();
 }
 
-void GPU::Clear2DObjects()
+void GPU::ClearObjects()
 {
+    _isBank1Initialized = false;
+    _isBank2Initialized = false;
     // If there is no list, nothing to do
     if (_graphics2D.shapeList == nullptr) return;
 

@@ -29,12 +29,13 @@ class GPU
             Serial.print(obj.shape->vertecies[0].x); Serial.print(", "); Serial.println(obj.shape->vertecies[0].y);
             _graphics2D.shapeList->push_back(obj);
         }
-        void Add2DObject(Shape2D shape, Texture2D texture){
-            _graphics2D.shapeList->push_back(*new GraphicsObject2D(shape, texture));
-            Serial.println(_graphics2D.shapeList->size());
-            Serial.print(shape.vertecies[0].x); Serial.print(", "); Serial.println(shape.vertecies[0].y);
-        }
+        // void Add2DObject(Shape2D shape, Texture2D texture){
+        //     _graphics2D.shapeList->push_back(*new GraphicsObject2D(shape, texture));
+        //     Serial.println(_graphics2D.shapeList->size());
+        //     Serial.print(shape.vertecies[0].x); Serial.print(", "); Serial.println(shape.vertecies[0].y);
+        // }
 
+        void Set2DObjects(ShapeList<GraphicsObject2D>* list);
         void Clear2DObjects();
 
         /// Get the list of 2D objects

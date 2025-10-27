@@ -1,9 +1,6 @@
-// ...existing code...
 #ifndef SHAPELIST_H
 #define SHAPELIST_H
 
-// Minimal C++ template singly-linked list implementation that avoids
-// including any standard headers (no <cstddef>, <utility>, <iterator>, ...).
 
 // minimal move helper (replacement for std::move)
 template<typename U>

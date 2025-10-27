@@ -2,6 +2,9 @@
 #define GPU_CPP
 
 #include "GPU.h"
+#include <stdlib.h>
+#include <utility>
+
 extern VRAM graphics;
 extern volatile bool __isBufferReadySet;
 volatile bool __activeBank;
@@ -123,8 +126,15 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
     // Serial.print("Shape type: "); Serial.print(obj->shape->shape);
     // Serial.print(" with color:");
     // Serial.println(obj->texture->colors[0]);
+ 
+   
+
+   uint8_t drawColor = obj->texture ? obj->texture->colors[0] : obj->color;
+
+    
+
     if(obj->shape->shape == Line){
-        graphics.drawLine(obj->shape->vertecies[0], obj->shape->vertecies[1],obj->texture->colors[0]);
+        graphics.drawLine(obj->shape->vertecies[0], obj->shape->vertecies[1], drawColor);
     }
     else if(obj->shape->shape == Triangle){
         if(obj->shape->style == FillStyle::Outline)
@@ -132,7 +142,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 obj->shape->vertecies[0].x, obj->shape->vertecies[0].y ,
                 obj->shape->vertecies[1].x, obj->shape->vertecies[1].y,
                 obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,
-                obj->texture->colors[0]
+                drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill)
@@ -140,7 +150,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 obj->shape->vertecies[0].x, obj->shape->vertecies[0].y ,
                 obj->shape->vertecies[1].x, obj->shape->vertecies[1].y,
                 obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,
-                obj->texture->colors[0]
+                drawColor
             );
     }
     else if(obj->shape->shape == Rectangle){
@@ -156,20 +166,20 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         Serial.print(obj->shape->vertecies[1].y);
         Serial.print(")");
         Serial.print(" with color:");
-        Serial.println(obj->texture->colors[0]);
+        Serial.println(drawColor);
         #endif
         if(obj->shape->style == FillStyle::Outline){           
             graphics.drawRectangle(
                 obj->shape->vertecies[0],
                 obj->shape->vertecies[1],
-                obj->texture->colors[0]
+                drawColor
             );
         }
         else if(obj->shape->style == FillStyle::Fill)
             graphics.fillRectangle(
                 obj->shape->vertecies[0],
                 obj->shape->vertecies[1],
-                obj->texture->colors[0]
+                drawColor
             );
     }
 
@@ -180,7 +190,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 circle->vertecies[0].x,
                 circle->vertecies[0].y,
                 circle->radius,
-                obj->texture->colors[0]
+                drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill)
@@ -188,7 +198,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 circle->vertecies[0].x,
                 circle->vertecies[0].y,
                 circle->radius,
-                obj->texture->colors[0]
+                drawColor
             );
     }
     else if(obj->shape->shape == Oval){
@@ -199,7 +209,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 oval->vertecies[0].y,
                 oval->radiusX,
                 oval->radiusY,
-                obj->texture->colors[0]
+                drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill)
@@ -208,7 +218,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 oval->vertecies[0].y,
                 oval->radiusX,
                 oval->radiusY,
-                obj->texture->colors[0]
+                drawColor
             );
     }
     else if(obj->shape->shape == Arc){
@@ -220,7 +230,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
                 arc->startDeg,
                 arc->endDeg,
                 arc->radius,
-                obj->texture->colors[0]
+                drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill){
@@ -269,21 +279,44 @@ void GPU::ClearScreen(){
     _isBank1Initialized = false;
     _isBank2Initialized = false;
 }
-void GPU::Clear2DObjects(){     
-            // while (_graphics2D.shapeList->size() > 0)
-            // {
-            //     _graphics2D.shapeList->pop_front();
-            //     Serial.println("Popped front 2D object");
-            //     Serial.print("Objects in list: "); Serial.print(_graphics2D.shapeList->size());
-            // }
-            _graphics2D.shapeList->for_each([](GraphicsObject2D& obj){
-                free(obj.shape->vertecies);
-                obj.shape = nullptr;
-                free(obj.texture->colors);
-                obj.texture = nullptr;                         
-            });
-            _graphics2D.shapeList->clear();   
-            delete _graphics2D.shapeList;
-            _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();                     
+void GPU::Set2DObjects(ShapeList<GraphicsObject2D>* list)
+{
+    // guard
+    if(list == nullptr){
+        // just clear our internal list
+        if(_graphics2D.shapeList){
+            _graphics2D.shapeList->clear();
         }
+        return;
+    }
+
+    // move elements from external list into GPU's internal list so GPU owns them.
+    // This prevents GPU from pointing into caller-owned memory that may be deleted.
+    if(!_graphics2D.shapeList) _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+
+    _graphics2D.shapeList->clear();
+    for(auto &obj : *list){
+        _graphics2D.shapeList->push_back(std::move(obj));
+    }
+    list->clear();
+}
+
+void GPU::Clear2DObjects()
+{
+    // If there is no list, nothing to do
+    if (_graphics2D.shapeList == nullptr) return;
+
+    // clear() will call each GraphicsObject2D destructor (which should delete its shape/texture)
+    _graphics2D.shapeList->clear();
+
+    // Replace the container with a fresh empty one to ensure no dangling references remain.
+    delete _graphics2D.shapeList;
+    _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+
+    #ifdef DEBUG_GPU
+    // Optional: update RAM diagnostics
+    saveRamStates();
+    PrintRAMstates();
+    #endif
+}
 #endif

@@ -30,15 +30,15 @@ struct Point2D{
     }
 };
 
-class Shape2D {
+struct Shape2D {
     public:
     uint8_t numberOfVerticies;
     Point2D* vertecies;
     FillStyle style = FillStyle::Outline; // e.g. 0 is outline, 1 is fill, 2 is vertical gradient...
     //TODO: dynamically find shape like dynamic_cast
     Shape shape;
-    virtual ~Shape2D() = default; //virtual destructor makes class abstract
-
+    virtual ~Shape2D() { delete[] vertecies; }  // delete[] (matches new[])
+    
     virtual bool operator==(Shape2D& other){
         return numberOfVerticies == other.numberOfVerticies &&
         style == other.style ;
@@ -46,7 +46,7 @@ class Shape2D {
     }
 };
 
-class Circle2D : public Shape2D{
+struct Circle2D : public Shape2D{
     public:
     uint16_t radius;
     Circle2D(int16_t x, int16_t y, uint16_t radius, FillStyle style = FillStyle::Outline){
@@ -60,7 +60,7 @@ class Circle2D : public Shape2D{
     }
 };
 
-class Oval2D : public Shape2D{
+struct Oval2D : public Shape2D{
     public:
     uint16_t radiusX;
     uint16_t radiusY;
@@ -75,7 +75,7 @@ class Oval2D : public Shape2D{
     }
 };
 
-class Arc2D : public Shape2D{
+struct Arc2D : public Shape2D{
     public:
     uint16_t radius;
     uint8_t startDeg;
@@ -93,7 +93,7 @@ class Arc2D : public Shape2D{
 };
 
 
-class Line2D : public Shape2D{
+struct Line2D : public Shape2D{
     public:
     Point2D p1() {return vertecies[0];}
     Point2D p2() {return vertecies[1];}
@@ -137,7 +137,7 @@ struct TrinagleLegDrawObject : public TriangleLeg{
     }
     
 };
-class Triangle2D: public Shape2D{  
+struct Triangle2D: public Shape2D{  
     public:
     Point2D p1() {return vertecies[0];}
     Point2D p2() {return vertecies[1];}
@@ -153,7 +153,7 @@ class Triangle2D: public Shape2D{
     }
 };
 
-class Rectangle2D : public Shape2D{
+struct Rectangle2D : public Shape2D{
     public:
     int16_t x1() {return vertecies[0].x;};
     int16_t x2() {return vertecies[1].x;};
@@ -182,14 +182,14 @@ class Rectangle2D : public Shape2D{
     }
 };
 
-class Polygon2D : public Shape2D{  
+struct Polygon2D : public Shape2D{  
     public:
     Polygon2D(Point2D* vertecies, uint8_t size, FillStyle style = FillStyle::Outline){
         this->numberOfVerticies = size;
         shape = Polygon;
         this->style = style;
         this->vertecies = new Point2D[size];
-        memcpy(this->vertecies, vertecies, size);
+        memcpy(this->vertecies, vertecies, size* sizeof(Point2D));
     }
 };
 
@@ -228,7 +228,9 @@ struct Texture2D{
     {
         colors = new uint8_t[width * height];
         memcpy(this->colors,o.colors, width*height);
+        #ifdef DEBUG_GPU
         Serial.println("Texture 2D deep copied");
+        #endif
     }
     // move constructor
     Texture2D(Texture2D&& o) noexcept
@@ -237,7 +239,9 @@ struct Texture2D{
           colors(o.colors)
     {
         o.colors = nullptr;
+        #ifdef DEBUG_GPU
         Serial.println("Texture 2D moved");
+        #endif
     }
     
     void Fill(uint8_t color){
@@ -245,13 +249,14 @@ struct Texture2D{
     }   
     ~Texture2D(){
         delete[] colors;
+        colors = nullptr;
     }
 };
 
 struct GraphicsObject2D{
 
-    Shape2D* shape;
-    Texture2D* texture;
+    Shape2D* shape = nullptr;
+    Texture2D* texture = nullptr;
     uint8_t color;
     bool drawnOnMem1 = false;
     bool drawnOnMem2 = false;
@@ -261,31 +266,43 @@ struct GraphicsObject2D{
         this->shape = shape;
         this->texture = texture;
     }
-    //texture by value
-    GraphicsObject2D(Shape2D* shape, Texture2D texture){
+    // //texture by value
+    // GraphicsObject2D(Shape2D* shape, Texture2D texture){
+    //     this->shape = shape;
+    //     this->texture = new Texture2D(texture.width, texture.height, texture.colors);
+    // }
+    // //shape and texture by value
+    // GraphicsObject2D(Shape2D shape, Texture2D texture){
+    //     this->shape = new Shape2D(shape);
+    //     this->texture = new Texture2D(texture.width, texture.height, texture.colors);
+    //     #ifdef DEBUG_GPU
+    //     Serial.println("GraphicsObject2D created by value");
+    //     #endif
+    // }
+    GraphicsObject2D(Shape2D* shape, uint8_t color){
         this->shape = shape;
-        this->texture = new Texture2D(texture.width, texture.height, texture.colors);
-    }
-    //shape and texture by value
-    GraphicsObject2D(Shape2D shape, Texture2D texture){
-        this->shape = new Shape2D(shape);
-        this->texture = new Texture2D(texture.width, texture.height, texture.colors);
-        Serial.println("GraphicsObject2D created by value");
+        this->texture = nullptr;
+        this->color = color;        
     }
     // copy constructor (shallow copy of pointers, copies flags)
     GraphicsObject2D(const GraphicsObject2D& o)
         : shape(o.shape),
           texture(o.texture),
+          color(o.color),
           drawnOnMem1(o.drawnOnMem1),
           drawnOnMem2(o.drawnOnMem2)
     {}
-    
+    // disable accidental by-value copies (they deep-allocate)
+    GraphicsObject2D(Shape2D* shape, Texture2D texture) = delete;
+    GraphicsObject2D(Shape2D shape, Texture2D texture) = delete;
+
 
     // copy assignment (shallow copy)
     GraphicsObject2D& operator=(const GraphicsObject2D& o){
         if (this == &o) return *this;
         shape = o.shape;
         texture = o.texture;
+        color = o.color;
         drawnOnMem1 = o.drawnOnMem1;
         drawnOnMem2 = o.drawnOnMem2;
         return *this;
@@ -295,14 +312,18 @@ struct GraphicsObject2D{
     GraphicsObject2D(GraphicsObject2D&& o) noexcept
         : shape(o.shape),
           texture(o.texture),
+          color(o.color),
           drawnOnMem1(o.drawnOnMem1),
           drawnOnMem2(o.drawnOnMem2)
     {
         o.shape = nullptr;
         o.texture = nullptr;
+        o.color = 0;
         o.drawnOnMem1 = false;
         o.drawnOnMem2 = false;
-        //Serial.println("Graphics 2D copied");
+        #ifdef DEBUG_GPU
+        Serial.println("Graphics 2D copied");
+        #endif
     }
 
     // move assignment
@@ -310,6 +331,7 @@ struct GraphicsObject2D{
         if (this == &o) return *this;
         shape = o.shape;
         texture = o.texture;
+        color = o.color;
         drawnOnMem1 = o.drawnOnMem1;
         drawnOnMem2 = o.drawnOnMem2;
         o.shape = nullptr;
@@ -319,19 +341,30 @@ struct GraphicsObject2D{
         return *this;
     }
     ~GraphicsObject2D(){
+        #ifdef DEBUG_GPU
         Serial.println("GraphicsObject2D destroyed");
+        #endif
         if (shape != nullptr) {
-            shape->vertecies != nullptr ? free(shape->vertecies) : void();
             delete shape;
+            shape = nullptr;
         }
         if (texture != nullptr){
-            texture->colors != nullptr ? free(texture->colors) : void();
             delete texture;
+            texture = nullptr;
         }
     }
 };
 
 class Graphics2D{
     public: 
+    //GraphicsObject2D* currentDrawObject = nullptr;
     ShapeList<GraphicsObject2D>* shapeList = new ShapeList<GraphicsObject2D>(); 
+    ~Graphics2D(){
+        if(shapeList){
+            // clear elements so their destructors free owned shape/texture
+            shapeList->clear();
+            delete shapeList;
+            shapeList = nullptr;
+        }
+    }
 };

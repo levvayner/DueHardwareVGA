@@ -31,8 +31,8 @@ void setup(){
     //background to see mouse in action
     for(int vert = 0; vert < settings.screenHeight / 10; vert++){
         gpu.Add2DObject(GraphicsObject2D(
-            Rectangle2D(0, vert * 10, settings.screenWidth, 10),
-            Texture2D(1,1,new uint8_t[1]{(uint8_t)(256/vert)} )
+            new Rectangle2D(0, vert * 10, settings.screenWidth, 10),
+            new Texture2D(1,1,new uint8_t[1]{(uint8_t)(256/vert)} )
         ));
         //graphics.fillRectangle(0,vert * 10, settings.screenWidth, settings.screenHeight / 10, 256/vert);
     }

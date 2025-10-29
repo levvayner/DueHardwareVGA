@@ -1,5 +1,5 @@
 #include "mouse.h"
-#include <hw/video/GPU.h>
+#include <sw/GPU.h>
 #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
 USBHost usb;
 #endif

@@ -23,7 +23,7 @@ void mouseClick(MouseClickArgs args){
 void setup(){
     Serial.begin(115200);
     Serial.println("Started Due Hardware VGA Mouse Test");
-    gpu = GPU(RenderMode::Buffered);
+    gpu = GPU(RenderMode::rmBuffered);
     //graphics.begin();
     //graphics.clear();
     auto settings = gpu.GetSettings();

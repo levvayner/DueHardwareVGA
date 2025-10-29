@@ -82,6 +82,7 @@ public:
         else head = n;
         tail = n;
         ++count;
+        //Serial.println("Added element to Shape List by copy");
     }
     void push_back(T&& v) {
         Node* n = new Node(_move(v));
@@ -89,6 +90,7 @@ public:
         else head = n;
         tail = n;
         ++count;
+        //Serial.println("Added element to Shape List by move");
     }
 
     void pop_front() {

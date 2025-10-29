@@ -5,14 +5,15 @@ enum FillStyle{
     Fill = 1
 };
 enum Shape{
-    Pixel = 1,
-    Circle = 2,
-    Oval = 3,
-    Arc = 4,
-    Line = 5,
-    Triangle = 6,
-    Rectangle = 7,
-    Polygon = 8
+    Pixel = 0,
+    Circle = 1,
+    Oval = 2,
+    Arc = 3,
+    Line = 4,
+    Triangle = 5,
+    Rectangle = 6,
+    Polygon = 7
 };
-
+extern const char * ShapeName[];
+extern const char * GetShapeName(int shape);
 #endif

@@ -1,6 +1,6 @@
 #ifndef GPU_CPP
 #define GPU_CPP
-
+#include "2D/Enums2D.h"
 #include "GPU.h"
 
 extern VRAM graphics;
@@ -52,7 +52,7 @@ void GPU::PrintRAMstates()
 //  Serial.print(MaxUsedHeapRAM);
 //  Serial.print(" STACK: ");
 //  Serial.print(MaxUsedStackRAM);
- Serial.print(" Min FREE RAM: ");
+ Serial.print("Min FREE RAM: ");
  Serial.println(MinfreeRAM);
 }
 
@@ -60,6 +60,7 @@ GPU::GPU(RenderMode mode = RenderMode::rmDirect)
 {
     //graphics = &graphics;
     _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    _textBuffer = *new TextBuffer(graphics.settings.screenWidth/graphics.settings.charWidth ,graphics.settings.screenHeight/graphics.settings.charHeight);
     _renderMode = mode;
     graphics.begin();
     graphics.settings.backgroundColor = 0x00;
@@ -77,24 +78,34 @@ void GPU::Render()
     #endif
     if(__activeBank == 0 && !_isBank1Initialized){
         
-        graphics.clear(0,0,1 << graphics.settings.horizontalBits, 1 << graphics.settings.horizontalBits); //clear full screen
+        graphics.clear(0,0,graphics.settings.screenWidth, graphics.settings.screenHeight); //clear full screen
         _isBank1Initialized = true;
+        #ifdef DEBUG_GPU
         Serial.println("Initialized bank 0");
+        #endif
     }
     else if(__activeBank == 1 && !_isBank2Initialized){
-        graphics.clear(0,0,1 << graphics.settings.horizontalBits, 1 << graphics.settings.horizontalBits);
+        graphics.clear(0,0, graphics.settings.screenWidth, graphics.settings.screenHeight);
         _isBank2Initialized = true;
+        #ifdef DEBUG_GPU
         Serial.println("Initialized bank 1");
+        #endif
     }
 
-    for(auto &obj : *_graphics2D.shapeList){
-        if(__activeBank == 0 && !obj.drawnOnMem1){
-            Draw2DObject(&obj);
-            obj.drawnOnMem1 = true;
-        }
-        else if(__activeBank == 1 && !obj.drawnOnMem2){
-            Draw2DObject(&obj);
-            obj.drawnOnMem2 = true;
+    if(_graphics2D.shapeList != nullptr && _graphics2D.shapeList->size() > 0){
+        #ifdef DEBUG_GPU
+        Serial.print("Rendering ");Serial.print(_graphics2D.shapeList->size() ); Serial.println(" graphics objects");
+        Serial.print("Empty flag: "); Serial.println(_graphics2D.shapeList->empty() ? "Empty" : "Contains Data");
+        #endif
+        for(auto &obj : *_graphics2D.shapeList){
+            if(__activeBank == 0 && !obj.drawnOnMem1){
+                Draw2DObject(&obj);
+                obj.drawnOnMem1 = true;
+            }
+            else if(__activeBank == 1 && !obj.drawnOnMem2){
+                Draw2DObject(&obj);
+                obj.drawnOnMem2 = true;
+            }
         }
     }
 
@@ -115,6 +126,7 @@ void GPU::Render()
    //}
     
     graphics.setReady();
+    //Serial.print("Rendering frame: "); Serial.print(millis() - startTime); Serial.println(" ms");
 }
 
 bool GPU::activeBank()
@@ -124,20 +136,21 @@ bool GPU::activeBank()
 
 void GPU::DrawTextBuffer()
 {
+    if(_textBuffer.text != nullptr)
     for(int line = 0; line < _textBuffer.height; line++){
         for(int col = 0; col < _textBuffer.width; col++){
-            if(_textBuffer.flags[line * _textBuffer.width + col].isPrintedBuffer1 && __activeBank == 0)
+            if(_textBuffer.GetIsPrinted1(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 0)
                 continue;
-            if(_textBuffer.flags[line * _textBuffer.width + col].isPrintedBuffer2 && __activeBank == 1)
+            if(_textBuffer.GetIsPrinted2(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 1)
                 continue;
 
             char character = _textBuffer.text[line * _textBuffer.width + col];
             Color color = _textBuffer.colors[line * _textBuffer.width + col];
             graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, graphics.settings.backgroundColor, true, true);
             if(__activeBank == 0)
-                _textBuffer.flags[line * _textBuffer.width + col].isPrintedBuffer1 = true;
+               _textBuffer.SetIsPrinted1(& _textBuffer.flags[line * _textBuffer.width + col],true);
             else
-                _textBuffer.flags[line * _textBuffer.width + col].isPrintedBuffer2 = true;
+                _textBuffer.SetIsPrinted2(& _textBuffer.flags[line * _textBuffer.width + col],true);
         }
     }
 }
@@ -145,7 +158,12 @@ void GPU::DrawTextBuffer()
 void GPU::Draw2DObject(GraphicsObject2D* obj)
 {
     // Serial.print("Drawing 2D object at "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
-    // Serial.print("Shape type: "); Serial.print(obj->shape->shape);
+
+    // if(obj->shape->numberOfVerticies > 1){
+    //     Serial.print("\tv2 "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
+    // }
+
+    // Serial.print("Shape type: "); Serial.print(ShapeName[ obj->shape->shape]);
     // Serial.print(" with color:");
     // Serial.println(obj->texture->colors[0]);
  
@@ -291,11 +309,13 @@ void GPU::ClearObjects()
     if (_graphics2D.shapeList == nullptr) return;
 
     // clear() will call each GraphicsObject2D destructor (which should delete its shape/texture)
-    _graphics2D.shapeList->clear();
+    if(_graphics2D.shapeList->size() > 0){
+        _graphics2D.shapeList->clear();
 
     // Replace the container with a fresh empty one to ensure no dangling references remain.
-    delete _graphics2D.shapeList;
-    _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+        delete _graphics2D.shapeList;
+        _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    }
 
     #ifdef DEBUG_GPU
     // Optional: update RAM diagnostics

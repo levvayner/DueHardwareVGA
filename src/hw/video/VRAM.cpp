@@ -18,8 +18,16 @@ VRAM::~VRAM()
     end();
     //free(_frameBuffer);
 }
-void VRAM::begin(){
+void VRAM::begin(int width , int height, uint8_t textColor, uint8_t backgroundColor){
     settings = resolution1;
+    if(width != 0){
+        settings.screenWidth = width;
+    }
+    if(height!=0){
+        settings.screenHeight = height;
+    }
+    settings.foregroundColor = textColor;
+    settings.backgroundColor = backgroundColor;
     SRAM::begin(); 
     PIOC->PIO_PER = PIO_PC25;
     PIOC->PIO_ODR = PIO_PC25;
@@ -66,6 +74,7 @@ bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
         }
         uint16_t bufferSize = settings.charWidth * (settings.charHeight + 1);
         byte letterBuffer[bufferSize]; 
+        //Serial.print("Setting letter background color to "); Serial.println(backgroundColor,DEC);
         memset(letterBuffer, backgroundColor, bufferSize);
         
         //for each column of character

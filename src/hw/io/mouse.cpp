@@ -65,7 +65,7 @@ void VGAMouse::begin(uint16_t intervalMs)
         }
         _mouseArea = new Rectangle2D(_mouseLocation.x, _mouseLocation.y, 8,8);
         _mouseAreaObject =  new GraphicsObject2D( _mouseArea, new Texture2D(8,8,_mouseCursorBuffer));
-        gpu.Add2DObject(*_mouseAreaObject);
+        //gpu.Add2DObject(*_mouseAreaObject);
     }
     #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
     if(!_initializedUsb){

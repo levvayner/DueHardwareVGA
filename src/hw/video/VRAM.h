@@ -17,7 +17,7 @@ class VRAM : public SRAM{
     VRAM();
     ~VRAM();
 
-    void begin();
+    void begin(int width = 0, int height = 0, uint8_t textColor = Color::WHITE, uint8_t backgroundColor = Color::BLACK);
     void end();
 
     bool isWaiting();

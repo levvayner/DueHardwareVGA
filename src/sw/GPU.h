@@ -1,12 +1,17 @@
 #ifndef GPU_H
 #define GPU_H
-#include "VRAM.h"
+#include "hw/video/VRAM.h"
 #include <malloc.h>
+#include "Text/TextBuffer.h"
+#include <stdlib.h>
+#include <utility>
+
 
 
 enum RenderMode{
-    Direct = 0,
-    Buffered = 1
+    rmText = 0,
+    rmDirect = 1,
+    rmBuffered = 2
 };
 
 class GPU
@@ -18,6 +23,10 @@ class GPU
         void saveRamStates();
         void PrintRAMstates();
         bool activeBank();
+
+        TextBuffer* GetTextBuffer(){
+            return &_textBuffer;
+        }
 
         /// @brief Add a 2D object to the GPU
         /// @param obj The 2D object to add
@@ -64,11 +73,17 @@ class GPU
             return &graphics;
         }
 
+        void SetRenderMode(RenderMode renderMode){
+            _renderMode = renderMode;
+        }
+
     protected:
         void Draw2DObject(GraphicsObject2D* shape);
+        void DrawTextBuffer();
     private:
         //VRAM* _graphics;
         RenderMode _renderMode;
+        TextBuffer _textBuffer;
         //bool _activeBank = 0;
         Graphics2D _graphics2D;
         bool _isBank1Initialized = false;
@@ -86,4 +101,6 @@ class GPU
         char* ramend = (char*)0x20088000;
 
 };
+
+extern GPU gpu;
 #endif

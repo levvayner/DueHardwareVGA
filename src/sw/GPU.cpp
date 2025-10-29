@@ -2,6 +2,8 @@
 #define GPU_CPP
 #include "2D/Enums2D.h"
 #include "GPU.h"
+//#define DEBUG_GPU
+#define CRITICAL_MEMORY_RESTART_THRESHOLD 512
 
 extern VRAM graphics;
 GPU gpu(RenderMode::rmBuffered);
@@ -15,45 +17,27 @@ void clearReadySet(){
     __isBufferReadySet = false;
     __activeBank = !__activeBank;
     digitalWrite(PIN_READY,LOW); 
-    //graphics.setReady(false);
-    //Serial.print(millis()); Serial.println("            Cleared ready");
 }
 
 
 
-void GPU::saveRamStates()
-{
- char* heapend = sbrk(0);
- register char* stack_ptr asm("sp");
- struct mallinfo mi = mallinfo();
-//  if (MaxUsedStaticRAM < &_end - ramstart)
-//  {
-//  MaxUsedStaticRAM = &_end - ramstart;
-//  }
-//  if (MaxUsedHeapRAM < mi.uordblks)
-//  {
-//  MaxUsedHeapRAM = mi.uordblks;
-//  }
-//  if (MaxUsedStackRAM < ramend - stack_ptr)
-//  {
-//  MaxUsedStackRAM = ramend - stack_ptr;
-//  }
- if (MinfreeRAM > stack_ptr - heapend + mi.fordblks || MinfreeRAM == 0)
- { 
- MinfreeRAM = stack_ptr - heapend + mi.fordblks;
- }
-}
 
-void GPU::PrintRAMstates()
+void GPU::PrintRam(Print &print)
 {
-//  Serial.print("Max Used RAM STATIC: ");
-//  Serial.print(MaxUsedStaticRAM);
-//  Serial.print(" HEAP: ");
-//  Serial.print(MaxUsedHeapRAM);
-//  Serial.print(" STACK: ");
-//  Serial.print(MaxUsedStackRAM);
- Serial.print("Min FREE RAM: ");
- Serial.println(MinfreeRAM);
+    char* heapend = sbrk(0);
+    register char* stack_ptr asm("sp");
+    struct mallinfo mi = mallinfo();
+
+    if (MinfreeRAM > stack_ptr - heapend + mi.fordblks || MinfreeRAM == 0)
+    { 
+        MinfreeRAM = stack_ptr - heapend + mi.fordblks;
+        //automatically reboot if we are below threshold
+        if(MinfreeRAM < CRITICAL_MEMORY_RESTART_THRESHOLD)
+            RSTC->RSTC_CR = 0xA5000005; // Reset processor and internal peripherals
+            //TODO: store executing command, load after restart
+    }
+    print.print("Min FREE RAM: "); print.println(MinfreeRAM);
+
 }
 
 GPU::GPU(RenderMode mode = RenderMode::rmDirect)
@@ -139,14 +123,17 @@ void GPU::DrawTextBuffer()
     if(_textBuffer.text != nullptr)
     for(int line = 0; line < _textBuffer.height; line++){
         for(int col = 0; col < _textBuffer.width; col++){
+            //skip printing if already printed
             if(_textBuffer.GetIsPrinted1(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 0)
                 continue;
             if(_textBuffer.GetIsPrinted2(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 1)
                 continue;
 
             char character = _textBuffer.text[line * _textBuffer.width + col];
-            Color color = _textBuffer.colors[line * _textBuffer.width + col];
-            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, graphics.settings.backgroundColor, true, true);
+            if( character == 0) continue;
+            uint8_t color = _textBuffer.colors[line * _textBuffer.width + col];
+            uint8_t bgColor = _textBuffer.bgcolors[line * _textBuffer.width + col];
+            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, _textBuffer.GetTransparentBackground(&_textBuffer.flags[line * _textBuffer.width + col]));
             if(__activeBank == 0)
                _textBuffer.SetIsPrinted1(& _textBuffer.flags[line * _textBuffer.width + col],true);
             else
@@ -316,6 +303,9 @@ void GPU::ClearObjects()
         delete _graphics2D.shapeList;
         _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
     }
+
+    //clear text buffer
+    gpu.GetTextBuffer()->Clear();
 
     #ifdef DEBUG_GPU
     // Optional: update RAM diagnostics

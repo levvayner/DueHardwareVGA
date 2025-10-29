@@ -20,8 +20,10 @@ class GPU
         GPU(RenderMode mode);
         void Render();
         void ClearScreen();
-        void saveRamStates();
-        void PrintRAMstates();
+
+        //void saveRamStates();
+        //void PrintRAMstates();
+        void PrintRam(Print &print);
         bool activeBank();
 
         TextBuffer* GetTextBuffer(){

@@ -25,25 +25,23 @@ class TextBuffer{
     uint16_t height;
     char* text;
     uint8_t* colors;
+    uint8_t* bgcolors;
     uint8_t* flags;
 
-    bool GetUnderlined(uint8_t* flag){
-        return *flag & 0x1 << 2;
-    }
+   
     bool GetIsPrinted1(uint8_t* flag){
         return *flag & 0x1 << 0;
     }
     bool GetIsPrinted2(uint8_t* flag){
         return *flag & 0x1 << 1;
     }
-
-    void SetUnderlined(uint8_t* flag, bool isUnderlined){
-        if(isUnderlined)
-            *flag &= 1 << 0x2;
-        else
-            *flag = *flag & ~(1 << 2);
-        
+    bool GetUnderlined(uint8_t* flag){
+        return *flag & 0x1 << 2;
     }
+    bool GetTransparentBackground(uint8_t* flag){
+        return *flag & 0x1 << 3;
+    }
+
     void SetIsPrinted1(uint8_t* flag, bool isPrinted1 ){
         if(isPrinted1)
             *flag &= 1 << 0x0;
@@ -56,6 +54,20 @@ class TextBuffer{
         else
             *flag = *flag & ~(1 << 1);
     }
+    void SetUnderlined(uint8_t* flag, bool isUnderlined){
+        if(isUnderlined)
+            *flag &= 1 << 0x2;
+        else
+            *flag = *flag & ~(1 << 2);
+        
+    }
+    void SetIsTransparentBackground(uint8_t* flag, bool isTransparent){
+        if(isTransparent)
+            *flag &= 1 << 0x3;
+        else
+            *flag = *flag & ~(1 << 3);
+        
+    }
 
     //TextChar* buffer;
     TextBuffer(){
@@ -63,6 +75,7 @@ class TextBuffer{
         height = 0;//graphics.settings.screenHeight / graphics.settings.charHeight;
         text = new char[width * height];
         colors = new uint8_t[width * height];
+        bgcolors = new uint8_t[width * height];
         flags = new uint8_t[width * height];
         //Serial.print("Initialized text buffer with"); Serial.print(width*height); Serial.print(" chars");
     
@@ -74,16 +87,19 @@ class TextBuffer{
         this->height = height;
         text = new char[width * height]{0};
         colors = new uint8_t[width * height] {0};
-        flags = new uint8_t[width * height];
+        bgcolors = new uint8_t[width * height] {0};
+        flags = new uint8_t[width * height] {0};
         //Serial.print("Initialized text buffer with"); Serial.print(width*height); Serial.print(" chars");
         Clear();
     }
 
-    void Add(uint16_t x, uint16_t y, char character, uint8_t color){
-        if(x >= width || y >= height) return;
+    void Add(uint16_t x, uint16_t y, char character, uint8_t color, uint8_t bgcolor, bool isTransparent = false){
+        if(x >= width || y >= height || x < 0 || y < 0) return;
         //Serial.print("Adding char"); Serial.print(character); Serial.print(" at ("); Serial.print(x); Serial.print(","); Serial.print(y); Serial.print(") with color "); Serial.println(color.ToByte());
         text[y * width + x] = character;
         colors[y * width + x] = color;
+        bgcolors[y * width + x] = bgcolor;
+        SetIsTransparentBackground( &flags[y * width + x], isTransparent);
         InvalidateChar(x,y);
     }
 
@@ -93,9 +109,10 @@ class TextBuffer{
     //     colors[y * width + x] = textChar.color;
     //     InvalidateChar(x,y);
     // }
-    void UpdateCharColor(uint16_t x, uint16_t y, uint8_t color){
+    void UpdateCharColor(uint16_t x, uint16_t y, uint8_t color, uint8_t bgcolor){
         if(x >= width || y >= height) return;
         colors[y * width + x] = color;
+        bgcolors[y * width + x] = bgcolor;
         InvalidateChar(x,y);
     }
     void UpdateChar(uint16_t x, uint16_t y, char character){
@@ -116,7 +133,7 @@ class TextBuffer{
         SetIsPrinted2( &flags[y * width + x], false);        
     }
 
-    void AddString(uint16_t x, uint16_t y, const char* str, uint8_t color){
+    void AddString(uint16_t x, uint16_t y, const char* str, uint8_t color, uint8_t bgColor, bool isTransparent = false){
         uint16_t posX = x;
         uint16_t posY = y;
         for(size_t i = 0; i < strlen(str); i++){
@@ -125,7 +142,7 @@ class TextBuffer{
                 posY++;
                 if(posY >= height) break;
             }
-            Add(posX, posY, str[i], color);
+            Add(posX, posY, str[i], color, bgColor, isTransparent);
             posX++;
         }
     }

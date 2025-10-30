@@ -19,11 +19,9 @@ void clearReadySet(){
     digitalWrite(PIN_READY,LOW); 
 }
 
-
-
-
 void GPU::PrintRam(Print &print)
 {
+   
     char* heapend = sbrk(0);
     register char* stack_ptr asm("sp");
     struct mallinfo mi = mallinfo();
@@ -42,13 +40,27 @@ void GPU::PrintRam(Print &print)
 
 GPU::GPU(RenderMode mode = RenderMode::rmDirect)
 {
-    //graphics = &graphics;
+    _renderMode = mode;   
+}
+
+void GPU::begin()
+{
     _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    Serial.println("** Creating text buffer. Memory Before:  ");
+    PrintRam(Serial);
     _textBuffer = *new TextBuffer(graphics.settings.screenWidth/graphics.settings.charWidth ,graphics.settings.screenHeight/graphics.settings.charHeight);
-    _renderMode = mode;
-    graphics.begin();
+    Serial.print("Memory after:  "); PrintRam(Serial);
+    
+    graphics.begin(0,0,Color::GRAY);
+    
     graphics.settings.backgroundColor = 0x00;
     attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
+}
+
+void GPU::end()
+{
+    ClearScreen();    
+    detachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT));
 }
 
 void GPU::Render()
@@ -134,6 +146,9 @@ void GPU::DrawTextBuffer()
             uint8_t color = _textBuffer.colors[line * _textBuffer.width + col];
             uint8_t bgColor = _textBuffer.bgcolors[line * _textBuffer.width + col];
             graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, _textBuffer.GetTransparentBackground(&_textBuffer.flags[line * _textBuffer.width + col]));
+            if(_textBuffer.GetUnderlined(&_textBuffer.flags[line * _textBuffer.width + col])){
+                graphics.drawLine(col * graphics.settings.charWidth, line * graphics.settings.charHeight,(col + 1) * graphics.settings.charWidth, line * graphics.settings.charHeight,color);
+            }
             if(__activeBank == 0)
                _textBuffer.SetIsPrinted1(& _textBuffer.flags[line * _textBuffer.width + col],true);
             else
@@ -199,6 +214,7 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
 
     else if(obj->shape->shape == Circle){
         Circle2D* circle = static_cast<Circle2D*>(obj->shape);
+        //Serial.print("Drawing circle at ("); Serial.print(circle->vertecies[0].x);  Serial.print(", "); Serial.print(circle->vertecies[0].y); Serial.print(") with radius ");  Serial.println(circle->radius);
         if(obj->shape->style == FillStyle::Outline)
             graphics.drawCircle(
                 circle->vertecies[0].x,
@@ -292,25 +308,19 @@ void GPU::ClearObjects()
 {
     _isBank1Initialized = false;
     _isBank2Initialized = false;
-    // If there is no list, nothing to do
-    if (_graphics2D.shapeList == nullptr) return;
 
-    // clear() will call each GraphicsObject2D destructor (which should delete its shape/texture)
-    if(_graphics2D.shapeList->size() > 0){
-        _graphics2D.shapeList->clear();
-
-    // Replace the container with a fresh empty one to ensure no dangling references remain.
-        delete _graphics2D.shapeList;
-        _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    if (_graphics2D.shapeList) {
+        if (_graphics2D.shapeList->size() > 0) {
+            _graphics2D.shapeList->clear();  // this runs each GraphicsObject2D dtor
+        }        
     }
 
-    //clear text buffer
+    // reset text buffer content
     gpu.GetTextBuffer()->Clear();
 
     #ifdef DEBUG_GPU
     // Optional: update RAM diagnostics
-    saveRamStates();
-    PrintRAMstates();
+    PrintRam(Serial);
     #endif
 }
 #endif

@@ -89,7 +89,7 @@ class TextBuffer{
         colors = new uint8_t[width * height] {0};
         bgcolors = new uint8_t[width * height] {0};
         flags = new uint8_t[width * height] {0};
-        //Serial.print("Initialized text buffer with"); Serial.print(width*height); Serial.print(" chars");
+        Serial.print("Initialized text buffer with"); Serial.print(width*height); Serial.print(" chars");
         Clear();
     }
 

@@ -164,8 +164,14 @@ struct Rectangle2D : public Shape2D{
         shape = Rectangle;
         this->style = style;
         vertecies = new Point2D[2];
-        vertecies[0] = Point2D(x1,y1);
-        vertecies[1] = Point2D(x2,y2);                
+        if(x1 < x2){
+            vertecies[0] = Point2D(x1,y1);
+            vertecies[1] = Point2D(x2,y2);                
+        } else{
+            vertecies[1] = Point2D(x1,y1);
+            vertecies[2] = Point2D(x2,y2);                
+        
+        }
     }
 };
 

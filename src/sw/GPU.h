@@ -18,6 +18,10 @@ class GPU
 {
     public:
         GPU(RenderMode mode);
+        void begin();
+        void end();
+
+        
         void Render();
         void ClearScreen();
 

@@ -18,7 +18,7 @@ struct GraphicsObject2D{
         this->texture = texture;
         auto len = strlen(text);  
         if(len > 0){
-            this->text = new char[len];
+            this->text = new char[len + 1] {0};
             memcpy(this->text,text,len);
         }
     }
@@ -29,7 +29,7 @@ struct GraphicsObject2D{
         this->color = color;      
         auto len = strlen(text);  
         if(len > 0){
-            this->text = new char[len];
+            this->text = new char[len + 1] {0};
             memcpy(this->text,text,len);
         }
     }

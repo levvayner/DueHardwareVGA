@@ -129,6 +129,10 @@ void GPU::Invalidate()
 {
     _isBank1Initialized = false;
     _isBank2Initialized = false;
+    for(auto &obj : *_graphics2D.shapeList){
+        obj.drawnOnMem1 = false;
+        obj.drawnOnMem2 = false;
+    }
 }
 
 bool GPU::activeBank()
@@ -154,6 +158,7 @@ void GPU::DrawTextBuffer()
             auto isPrinted1 = flag & 1 << 0;
             auto isPrinted2 = flag & 1 << 1;
             auto isUnderlined = flag & 1 << 2;
+            auto isTransparent = flag & 1 << 3;
           
             //skip printing if already printed
             if((isPrinted1 && __activeBank == 0) || (isPrinted2 && __activeBank == 1))
@@ -167,17 +172,18 @@ void GPU::DrawTextBuffer()
             else
                 _textBuffer.flags[idx] |= 0x2;  
 
-            graphics.drawLine(col * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight ,(col + 1) * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight, isUnderlined ? graphics.settings.foregroundColor : graphics.settings.backgroundColor);
             // if(isUnderlined){
             //     Serial.print(" char at ["); Serial.print(col); Serial.print(", "); Serial.print(line); Serial.print("] is underlined!");
             // }
             if( character == 0)
                 continue;       
-        
+    
+            graphics.drawLine(col * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight ,(col + 1) * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight, isUnderlined ? graphics.settings.foregroundColor : bgColor);
+            
             // Serial.print("["); Serial.print(millis()); Serial.print("] "); Serial.print("Drawing character "); Serial.print(character); Serial.print(" at ["); Serial.print(col); Serial.print(", "); Serial.print(line); Serial.print("] Is underlined: "); Serial.println(isUnderlined);
             // Serial.print("Printed 1:"); Serial.print(isPrinted1);Serial.print(" Printed 2:"); Serial.print(isPrinted2);
-            // Serial.println(_textBuffer.GetTransparentBackground(&_textBuffer.flags[idx]) ? " Transparent" : " Not Transparent");        
-            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, !_textBuffer.GetTransparentBackground(&_textBuffer.flags[idx]));
+            // Serial.println(isTransparent) ? " Transparent" : " Not Transparent");        
+            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, isTransparent);
             
         }
     }
@@ -304,7 +310,16 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
     }
 
     if(obj->text){
-        graphics.drawText(obj->shape->vertecies[0],(uint8_t*)obj->text,graphics.settings.foregroundColor, graphics.settings.foregroundColor,true);
+        // auto textWidth = strlen(obj->text) * graphics.settings.charWidth;
+        uint16_t textHeight = 0, textWidth = 0;
+        for(int i=0; i < obj->shape->numberOfVerticies; i++){
+            textWidth += obj->shape->vertecies[i].x;
+            textHeight += obj->shape->vertecies[i].y;
+        }
+        auto xpos = (textWidth / obj->shape->numberOfVerticies) - ((strlen(obj->text) * graphics.settings.charWidth) / 2);
+        auto ypos = (textHeight / obj->shape->numberOfVerticies) - graphics.settings.charHeight / 2;
+        graphics.drawText(xpos, ypos, obj->text, obj->color ^ 0xFF, obj->color,true);
+        //Serial.print("printing "); Serial.print(obj->text); Serial.print(" at ("); Serial.print(xpos);Serial.print(", "); Serial.print(ypos);;Serial.println(")");
     }
 
 }

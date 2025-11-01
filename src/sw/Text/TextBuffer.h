@@ -147,7 +147,11 @@ class TextBuffer{
         flags[idx] &= 0xF8;
         if(underline){
             flags[idx] |= 1 << 2;
+            if(text[idx] == 0)
+                text[idx] = 1;
         }
+            // if(text[idx] == 1)
+            //     text[idx] = 0;
         //text[idx] = '-';
         //colors[idx] = 255;
         //Serial.print(" Set Char flags to: b'"); Serial.println(flags[idx] ,BIN);

@@ -75,8 +75,11 @@ bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
         uint16_t bufferSize = settings.charWidth * (settings.charHeight + 1);
         byte letterBuffer[bufferSize]; 
         //Serial.print("Setting letter background color to "); Serial.println(backgroundColor,DEC);
-       // memset(letterBuffer, backgroundColor, bufferSize);
-        readBuffer(x,y,settings.charWidth, settings.charHeight,letterBuffer);
+        if(clearBackground)
+            memset(letterBuffer, backgroundColor, bufferSize);
+        else{
+            readBuffer(x,y,settings.charWidth, settings.charHeight,letterBuffer);
+        }
         
         //for each column of character
         for(uint16_t charX = 0;charX < settings.charWidth;charX ++){

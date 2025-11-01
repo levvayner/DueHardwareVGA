@@ -21,9 +21,10 @@ class GPU
         void begin();
         void end();
 
-        
         void Render();
+        void Invalidate();
         void ClearScreen();
+        void ClearScreen(uint8_t color);
 
         //void saveRamStates();
         //void PrintRAMstates();
@@ -105,7 +106,6 @@ class GPU
         
         char* ramstart = (char*)0x20070000;
         char* ramend = (char*)0x20088000;
-
 };
 
 extern GPU gpu;

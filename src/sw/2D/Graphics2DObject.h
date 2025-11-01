@@ -7,28 +7,40 @@ struct GraphicsObject2D{
 
     Shape2D* shape = nullptr;
     Texture2D* texture = nullptr;
+    char* text = nullptr;
     uint8_t color;
-    bool drawnOnMem1 = false;
-    bool drawnOnMem2 = false;
+    bool drawnOnMem1 = 0x0;
+    bool drawnOnMem2 = 0x0;
 
     //texture by pointer
-    GraphicsObject2D(Shape2D* shape, Texture2D* texture){
+    GraphicsObject2D(Shape2D* shape, Texture2D* texture, const char* text = ""){
         this->shape = shape;
         this->texture = texture;
+        auto len = strlen(text);  
+        if(len > 0){
+            this->text = new char[len];
+            memcpy(this->text,text,len);
+        }
     }
     //color only
-    GraphicsObject2D(Shape2D* shape, uint8_t color){
+    GraphicsObject2D(Shape2D* shape, uint8_t color, const char* text = ""){
         this->shape = shape;
         this->texture = nullptr;
-        this->color = color;        
+        this->color = color;      
+        auto len = strlen(text);  
+        if(len > 0){
+            this->text = new char[len];
+            memcpy(this->text,text,len);
+        }
     }
     // copy constructor (shallow copy of pointers, copies flags)
     GraphicsObject2D(const GraphicsObject2D& o)
         : shape(o.shape),
           texture(o.texture),
+          text(o.text),
           color(o.color),
           drawnOnMem1(o.drawnOnMem1),
-          drawnOnMem2(o.drawnOnMem2)
+          drawnOnMem2(o.drawnOnMem2)          
     {}
     // disable accidental by-value copies (they deep-allocate)
     GraphicsObject2D(Shape2D* shape, Texture2D texture) = delete;
@@ -40,9 +52,11 @@ struct GraphicsObject2D{
         if (this == &o) return *this;
         shape = o.shape;
         texture = o.texture;
+        text = o.text;
         color = o.color;
         drawnOnMem1 = o.drawnOnMem1;
         drawnOnMem2 = o.drawnOnMem2;
+        
         return *this;
     }
 
@@ -50,15 +64,18 @@ struct GraphicsObject2D{
     GraphicsObject2D(GraphicsObject2D&& o) noexcept
         : shape(o.shape),
           texture(o.texture),
+          text(o.text),
           color(o.color),
           drawnOnMem1(o.drawnOnMem1),
           drawnOnMem2(o.drawnOnMem2)
+          
     {
         o.shape = nullptr;
         o.texture = nullptr;
         o.color = 0;
         o.drawnOnMem1 = false;
         o.drawnOnMem2 = false;
+        o.text = nullptr;
         #ifdef DEBUG_GPU
         Serial.println("Graphics 2D copied");
         #endif
@@ -69,13 +86,17 @@ struct GraphicsObject2D{
         if (this == &o) return *this;
         shape = o.shape;
         texture = o.texture;
+        text = o.text;
         color = o.color;
         drawnOnMem1 = o.drawnOnMem1;
         drawnOnMem2 = o.drawnOnMem2;
+                
         o.shape = nullptr;
         o.texture = nullptr;
+        o.text = nullptr;
         o.drawnOnMem1 = false;
-        o.drawnOnMem2 = false;
+        o.drawnOnMem2 = false;        
+        
         return *this;
     }
     ~GraphicsObject2D(){
@@ -89,6 +110,10 @@ struct GraphicsObject2D{
         if (texture != nullptr){
             delete texture;
             texture = nullptr;
+        }
+        if (text != nullptr){
+            delete text;
+            text = nullptr;
         }
     }
 };

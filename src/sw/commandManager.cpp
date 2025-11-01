@@ -52,8 +52,11 @@ command* commandManager::getCommand(const char *name)
 {
     //search from back of list to get most recently added    
     for(int idx = _idx - 1; idx >= 0; idx--){
-        if(strncasecmp(_commands[idx].name, name,strlen(_commands[idx].name)) == 0 )
-            return &_commands[idx];
+        if(strncasecmp(_commands[idx].name, name,strlen(_commands[idx].name)) == 0)
+        {
+            if(strlen(_commands[idx].name) == strlen(name)) //name will inlcude a trailing null terminator
+                return &_commands[idx];
+        }   
     }
     return nullptr;
 }
@@ -64,85 +67,84 @@ command* commandManager::getCommands()
 }
 
 commandRequest commandManager::buildCommand(const char* commandText){
-    {
-        String cmdText = commandText;
-        cmdText.remove(cmdText.length() - 1);//trim off trailing enter
-        
-        uint8_t cmdLength = cmdText.length();
-        commandRequest request;
-        if(cmdLength == 0) return request;
-        
-        uint8_t cmdStartIdx = 0;
-        uint8_t cmdEndIdx = cmdLength - 1;
-        if(cmdText.indexOf(' ') > 0){
-            cmdEndIdx = cmdText.indexOf(' ');
-        }
 
-        // Serial.print("Got response: "); Serial.println(cmdText.c_str());
-        // Serial.print("End Idx:"); Serial.print(cmdEndIdx); Serial.print(" Cmd Length: "); Serial.println(cmdLength);
-        
-        if(cmdEndIdx == cmdLength - 1){
-            //cmd without  parameters            
-            command *cmd = getCommand(cmdText.c_str());
-            
-            if(cmd == nullptr){
-                Serial.print("Unknown command: "); Serial.println(cmdText.c_str());
-                return request;
-            }
-            request.name = cmd->name;
-            request.onExecute = cmd->onExecute;
-            request.valid = true;
-
-            return request;
-        } else{
-            //cmd with parameters
-            String cmdTextString = cmdText.substring(cmdStartIdx,cmdEndIdx);
-            
-            command *cmd = getCommand(cmdTextString.c_str());
-            
-            if(cmd == nullptr){
-                Serial.print("Unknown command: "); Serial.println(cmdTextString.c_str());
-                return request;
-            }
-            cmdEndIdx++; // skip space
-           
-            request.name = cmd->name;
-            request.onExecute = cmd->onExecute;
-            request.valid = true;
-            //bool hasFlags = false;
-            for(int flagIdx = cmdEndIdx; flagIdx < cmdLength; flagIdx++){
-                if(cmdText.c_str()[flagIdx] == '-' && cmdText.c_str()[flagIdx - 1] == ' '){
-                    //has flags
-                    int flagStartIdx = flagIdx;
-                    int endOfFlagIdx = cmdLength;
-                    for(int endFlagIdx = flagStartIdx; endFlagIdx < endOfFlagIdx; endFlagIdx++){
-                        if(cmdText.c_str()[endFlagIdx] == ' '){
-                            endOfFlagIdx = endFlagIdx;
-                            break;
-                        }
-                    }
-                    
-                    for(int flagIdx = flagStartIdx ;flagIdx < endOfFlagIdx; flagIdx++){
-                        if(strchr(cmd->flags, cmdText.c_str()[flagIdx]) != nullptr){
-                            request.flags[strlen(request.flags)] = cmdText.c_str()[flagIdx];
-                            //snprintf(request.flags,min(sizeof(request.flags), (uint32_t)(endOfFlagIdx - flagStartIdx)),"%s%c", request.flags, resp[flagIdx]);
-                        }
-                    }
-                    cmdEndIdx = endOfFlagIdx + 1;
-                    break;
-                }         
-            }
-            
-            if(cmdEndIdx > 0 && cmdEndIdx < cmdLength ){
-                sprintf(request.args,"%s",cmdText.substring(cmdEndIdx).c_str());
-            }
-            //cmd->onExecute(request);
-            return request;
-        }      
-        
-        
-        
+    String cmdText = commandText;
+    //remove trailing space
+    cmdText.trim();
+    
+    Serial.print("Building command length "); Serial.println(cmdText.length());
+    
+    uint8_t cmdLength = cmdText.length();
+    commandRequest request;
+    if(cmdLength == 0) return request;
+    
+    uint8_t cmdStartIdx = 0;
+    uint8_t cmdEndIdx = cmdLength - 1;
+    if(cmdText.indexOf(' ') > 0){
+        cmdEndIdx = cmdText.indexOf(' ');
     }
+
+    Serial.print("Got response: "); Serial.println(cmdText.c_str());
+    Serial.print("End Idx:"); Serial.print(cmdEndIdx); Serial.print(" Cmd Length: "); Serial.println(cmdLength);
+    
+    if(cmdEndIdx == cmdLength - 1){
+        //cmd without  parameters            
+        command *cmd = getCommand(cmdText.c_str());
+        
+        if(cmd == nullptr){
+            Serial.print("Unknown command: "); Serial.println(cmdText.c_str());
+            return request;
+        }
+        request.name = cmd->name;
+        request.onExecute = cmd->onExecute;
+        request.valid = true;
+
+        return request;
+    } else{
+        //cmd with parameters
+        String cmdTextString = cmdText.substring(cmdStartIdx,cmdEndIdx);
+        
+        command *cmd = getCommand(cmdTextString.c_str());
+        
+        if(cmd == nullptr){
+            Serial.print("Unknown command: "); Serial.println(cmdTextString.c_str());
+            return request;
+        }
+        cmdEndIdx++; // skip space
+        
+        request.name = cmd->name;
+        request.onExecute = cmd->onExecute;
+        request.valid = true;
+        //bool hasFlags = false;
+        for(int flagIdx = cmdEndIdx; flagIdx < cmdLength; flagIdx++){
+            if(cmdText.c_str()[flagIdx] == '-' && cmdText.c_str()[flagIdx - 1] == ' '){
+                //has flags
+                int flagStartIdx = flagIdx;
+                int endOfFlagIdx = cmdLength;
+                for(int endFlagIdx = flagStartIdx; endFlagIdx < endOfFlagIdx; endFlagIdx++){
+                    if(cmdText.c_str()[endFlagIdx] == ' '){
+                        endOfFlagIdx = endFlagIdx;
+                        break;
+                    }
+                }
+                
+                for(int flagIdx = flagStartIdx ;flagIdx < endOfFlagIdx; flagIdx++){
+                    if(strchr(cmd->flags, cmdText.c_str()[flagIdx]) != nullptr){
+                        request.flags[strlen(request.flags)] = cmdText.c_str()[flagIdx];
+                        //snprintf(request.flags,min(sizeof(request.flags), (uint32_t)(endOfFlagIdx - flagStartIdx)),"%s%c", request.flags, resp[flagIdx]);
+                    }
+                }
+                cmdEndIdx = endOfFlagIdx + 1;
+                break;
+            }         
+        }
+        
+        if(cmdEndIdx > 0 && cmdEndIdx < cmdLength ){
+            sprintf(request.args,"%s",cmdText.substring(cmdEndIdx).c_str());
+        }
+        //cmd->onExecute(request);
+        return request;
+    }      
 }
 
 void commandManager::clearCommands(const char *context)

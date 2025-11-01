@@ -125,6 +125,12 @@ void GPU::Render()
     //Serial.print("Rendering frame: "); Serial.print(millis() - startTime); Serial.println(" ms");
 }
 
+void GPU::Invalidate()
+{
+    _isBank1Initialized = false;
+    _isBank2Initialized = false;
+}
+
 bool GPU::activeBank()
 {
     return __activeBank;
@@ -132,30 +138,51 @@ bool GPU::activeBank()
 
 void GPU::DrawTextBuffer()
 {
-    if(_textBuffer.text != nullptr)
+    if(_textBuffer.text == nullptr){
+        Serial.print("No text to draw ");
+        return;
+    }
+    //Serial.print("Drawing from text buffer "); Serial.print(_textBuffer.width); Serial.print("x"); Serial.println(_textBuffer.height);
     for(int line = 0; line < _textBuffer.height; line++){
         for(int col = 0; col < _textBuffer.width; col++){
+            int idx = (line * _textBuffer.width) + col;
+            char character = _textBuffer.text[idx];
+            uint8_t color = _textBuffer.colors[idx];
+            uint8_t bgColor = _textBuffer.bgcolors[idx];
+            uint8_t flag = _textBuffer.flags[idx];
+           
+            auto isPrinted1 = flag & 1 << 0;
+            auto isPrinted2 = flag & 1 << 1;
+            auto isUnderlined = flag & 1 << 2;
+          
             //skip printing if already printed
-            if(_textBuffer.GetIsPrinted1(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 0)
+            if((isPrinted1 && __activeBank == 0) || (isPrinted2 && __activeBank == 1))
+            {              
                 continue;
-            if(_textBuffer.GetIsPrinted2(&_textBuffer.flags[line * _textBuffer.width + col]) && __activeBank == 1)
-                continue;
-
-            char character = _textBuffer.text[line * _textBuffer.width + col];
-            if( character == 0) continue;
-            uint8_t color = _textBuffer.colors[line * _textBuffer.width + col];
-            uint8_t bgColor = _textBuffer.bgcolors[line * _textBuffer.width + col];
-            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, _textBuffer.GetTransparentBackground(&_textBuffer.flags[line * _textBuffer.width + col]));
-            if(_textBuffer.GetUnderlined(&_textBuffer.flags[line * _textBuffer.width + col])){
-                graphics.drawLine(col * graphics.settings.charWidth, line * graphics.settings.charHeight,(col + 1) * graphics.settings.charWidth, line * graphics.settings.charHeight,color);
             }
+
             if(__activeBank == 0)
-               _textBuffer.SetIsPrinted1(& _textBuffer.flags[line * _textBuffer.width + col],true);
+                _textBuffer.flags[idx] |= 0x1;
+                //_textBuffer.SetIsPrinted1(idx,true);
             else
-                _textBuffer.SetIsPrinted2(& _textBuffer.flags[line * _textBuffer.width + col],true);
+                _textBuffer.flags[idx] |= 0x2;  
+
+            graphics.drawLine(col * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight ,(col + 1) * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight, isUnderlined ? graphics.settings.foregroundColor : graphics.settings.backgroundColor);
+            // if(isUnderlined){
+            //     Serial.print(" char at ["); Serial.print(col); Serial.print(", "); Serial.print(line); Serial.print("] is underlined!");
+            // }
+            if( character == 0)
+                continue;       
+        
+            // Serial.print("["); Serial.print(millis()); Serial.print("] "); Serial.print("Drawing character "); Serial.print(character); Serial.print(" at ["); Serial.print(col); Serial.print(", "); Serial.print(line); Serial.print("] Is underlined: "); Serial.println(isUnderlined);
+            // Serial.print("Printed 1:"); Serial.print(isPrinted1);Serial.print(" Printed 2:"); Serial.print(isPrinted2);
+            // Serial.println(_textBuffer.GetTransparentBackground(&_textBuffer.flags[idx]) ? " Transparent" : " Not Transparent");        
+            graphics.drawText(col * graphics.settings.charWidth, line * graphics.settings.charHeight, character, color, bgColor, !_textBuffer.GetTransparentBackground(&_textBuffer.flags[idx]));
+            
         }
     }
 }
+
 
 void GPU::Draw2DObject(GraphicsObject2D* obj)
 {
@@ -276,8 +303,19 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         
     }
 
+    if(obj->text){
+        graphics.drawText(obj->shape->vertecies[0],(uint8_t*)obj->text,graphics.settings.foregroundColor, graphics.settings.foregroundColor,true);
+    }
+
 }
-void GPU::ClearScreen(){
+
+void GPU::ClearScreen()
+{
+    graphics.clear();
+    ClearObjects();
+}
+void GPU::ClearScreen(uint8_t color){
+    graphics.settings.backgroundColor = color;
     graphics.clear();
     ClearObjects();
     
@@ -316,7 +354,7 @@ void GPU::ClearObjects()
     }
 
     // reset text buffer content
-    gpu.GetTextBuffer()->Clear();
+    _textBuffer.Clear();
 
     #ifdef DEBUG_GPU
     // Optional: update RAM diagnostics

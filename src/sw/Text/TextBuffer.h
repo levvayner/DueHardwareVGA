@@ -130,10 +130,10 @@ class TextBuffer{
 
     void ClearChar(uint16_t x, uint16_t y){
         if(x >= width || y >= height) return;
-        Serial.print("GPU Text buffer: Clearing character "); Serial.println(text[y * width + x]);
+        //Serial.print("GPU Text buffer: Clearing character "); Serial.println(text[y * width + x]);
         text[y * width + x] = ' ';
         //SetIsTransparentBackground(y * width + x,false); //paint over console
-        flags[y * width + x] &= 0xFC;
+        flags[y * width + x] &= 0xF0;
     }
 
     void UpdateCharUnderline(uint16_t x, uint16_t y, bool underline){

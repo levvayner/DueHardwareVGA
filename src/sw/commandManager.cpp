@@ -93,6 +93,7 @@ commandRequest commandManager::buildCommand(const char* commandText){
         
         if(cmd == nullptr){
             Serial.print("Unknown command: "); Serial.println(cmdText.c_str());
+            request.name = (char *)cmdText.c_str();
             return request;
         }
         request.name = cmd->name;
@@ -107,7 +108,8 @@ commandRequest commandManager::buildCommand(const char* commandText){
         command *cmd = getCommand(cmdTextString.c_str());
         
         if(cmd == nullptr){
-            Serial.print("Unknown command: "); Serial.println(cmdTextString.c_str());
+            Serial.print("Unknown parametered command: "); Serial.println(cmdTextString.c_str());
+            request.name = (char*)cmdTextString.c_str();
             return request;
         }
         cmdEndIdx++; // skip space

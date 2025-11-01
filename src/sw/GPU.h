@@ -22,6 +22,7 @@ class GPU
         void end();
 
         void Render();
+        /// @brief Invalidate both banks forcing screen to clear and all objects to be redrawn
         void Invalidate();
         void ClearScreen();
         void ClearScreen(uint8_t color);

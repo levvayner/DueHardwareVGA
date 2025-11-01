@@ -9,6 +9,9 @@
         "valarray": "cpp",
         "algorithm": "cpp",
         "cstdlib": "cpp",
-        "basic_definitions": "cpp"
+        "basic_definitions": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
     }
 }

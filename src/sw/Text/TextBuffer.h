@@ -171,6 +171,14 @@ class TextBuffer{
         }
     }
 
+    size_t GetLineLength(uint16_t lineNumber){
+        auto data = new char[width] {0};
+        memcpy(data,text + lineNumber * width,width);
+        size_t ret = strlen(data);
+        delete[] data;
+        return ret;
+    }
+
     void ScrollDown(){
         auto data = new char[width] {0};
         for(int line = 0; line < height - 1; line++){
@@ -194,6 +202,7 @@ class TextBuffer{
         memset(bgcolors+(height-1)*width, 0, width);
         memset(flags+(height-1)*width, 0, width);
         Invalidate();
+        delete[] data;
     }
 
     void Invalidate(){

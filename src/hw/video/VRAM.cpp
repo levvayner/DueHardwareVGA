@@ -33,6 +33,8 @@ void VRAM::begin(int width , int height, uint8_t textColor, uint8_t backgroundCo
     PIOC->PIO_ODR = PIO_PC25;
     PIOC->PIO_PUDR = PIO_PC25;
 
+    updateFont();
+
     //attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
 }
 void VRAM::end()
@@ -51,6 +53,11 @@ bool VRAM::setReady(bool clear){
     digitalWrite(PIN_READY,!clear); 
     __isBufferReadySet = !clear;        
     return true;
+}
+void VRAM::updateFont()
+{
+    settings.charHeight = CHAR_HEIGHT;
+    settings.charWidth = CHAR_WIDTH;
 }
 #else
 bool VRAM::isWaiting(){ return false;}
@@ -80,19 +87,35 @@ bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
         else{
             readBuffer(x,y,settings.charWidth, settings.charHeight,letterBuffer);
         }
-        
-        //for each column of character
-        for(uint16_t charX = 0;charX < settings.charWidth;charX ++){
-            byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
+        int bytesPerRow = ceil((float)(settings.charWidth) / 8.0f);
 
-
-            for(int charY = 0; charY < settings.charHeight; charY++){
-                byte isSet = column & (1 << charY);
-                if(!isSet && !clearBackground) continue;
-                letterBuffer[charY*settings.charWidth + charX] =  isSet ?  color : backgroundColor ;
+        //Serial.print("Writing letter "); Serial.print(text[idx]); Serial.print(" with dimentions ");Serial.print(settings.charWidth);Serial.print(", "); Serial.print(settings.charHeight); Serial.print(" with "); Serial.print(bytesPerRow); Serial.println(" bytes per row");
+        //get one row at a time
+        for(int row = 0; row < settings.charHeight;row++){
+            for(int col=0;col < bytesPerRow;col++){
+                for(int bitIdx = 0; bitIdx < 8; bitIdx++){
+                    auto charIdx = (uint8_t)(text[idx] - 32);
+                    uint16_t coldIdx = col + row *  bytesPerRow;
+                    byte isSet = CHARS[charIdx][coldIdx] & (1 << bitIdx);
+                    //Serial.print("Setting bit");
+                    if(!isSet && !clearBackground) continue;
+                    letterBuffer[row*settings.charWidth + col*8 + bitIdx] = isSet ?  color : backgroundColor ;
+                }
             }
-            
         }
+        
+        // //for each column of character
+        // for(uint16_t charX = 0;charX < settings.charWidth;charX ++){
+        //     byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
+
+
+        //     for(int charY = 0; charY < settings.charHeight; charY++){
+        //         byte isSet = column & (1 << charY);
+        //         if(!isSet && !clearBackground) continue;
+        //         letterBuffer[charY*settings.charWidth + charX] =  isSet ?  color : backgroundColor ;
+        //     }
+            
+        // }
         #ifndef DOUBLE_BUFFER
         while(Busy(busyType));
         #endif

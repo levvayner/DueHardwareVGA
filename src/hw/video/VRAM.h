@@ -22,6 +22,8 @@ class VRAM : public SRAM{
 
     bool isWaiting();
     bool setReady(bool clear = false);
+
+    void updateFont();
     
 
     virtual bool drawText(int x, int y, const char * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);

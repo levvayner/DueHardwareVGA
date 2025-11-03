@@ -27,7 +27,7 @@ char VGAKeyboard::getKey()
     if(_ps2Input.available()){ 
         auto keyPress = _ps2Input.getKey();
         char c = 0;//_ps2Input.read();
-        //Serial.print("Got PS2 Key: 0x"); Serial.println(c, HEX);
+        Serial.print("Got PS2 Key: 0x"); Serial.print(c, HEX); Serial.print(" type: "); Serial.println(keyPress.type);
         if(keyPress.type == ASCII || keyPress.type == Cursor)
             c = keyPress.keyCode;
 

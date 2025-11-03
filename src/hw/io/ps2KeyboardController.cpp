@@ -44,6 +44,7 @@ ConsoleKeyPress ps2KeyboardController::getKey()
                 if(_c == PS2_KEY_ENTER){
                     _c = 10;
                     kp.isFunctionKey = false;
+                    Serial.print("Receieved enter key");
                 }
             }
             if(kp.isFunctionKey){

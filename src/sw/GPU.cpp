@@ -3,7 +3,6 @@
 #include "2D/Enums2D.h"
 #include "GPU.h"
 //#define DEBUG_GPU
-#define CRITICAL_MEMORY_RESTART_THRESHOLD 512
 
 extern VRAM graphics;
 GPU gpu(RenderMode::rmBuffered);
@@ -45,15 +44,16 @@ GPU::GPU(RenderMode mode = RenderMode::rmDirect)
 
 void GPU::begin()
 {
-    _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    _renderCanvas.shapeList = new ShapeList<GraphicsObject2D>();
+    _mouseCanvas.shapeList = new ShapeList<GraphicsObject2D>();
     Serial.println("** Creating text buffer. Memory Before:  ");
     PrintRam(Serial);
     _textBuffer = *new TextBuffer(graphics.settings.screenWidth/graphics.settings.charWidth ,graphics.settings.screenHeight/graphics.settings.charHeight);
     Serial.print("Memory after:  "); PrintRam(Serial);
     
-    graphics.begin(0,0,Color::GRAY);
+    graphics.begin(graphics.settings.screenWidth, graphics.settings.screenHeight, graphics.settings.foregroundColor);
     
-    graphics.settings.backgroundColor = 0x00;
+    //graphics.settings.backgroundColor = 0x00;
     attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
 }
 
@@ -65,12 +65,13 @@ void GPU::end()
 
 void GPU::Render()
 {
+    bool modified = false;
     unsigned long startTime = millis();
-    while(graphics.isWaiting() && (millis() - startTime < 40));
+    while(graphics.isWaiting() && (millis() - startTime < 20));
     //_activeBank = digitalRead(PIN_BANK_SELECT);
     #ifdef DEBUG_GPU
     Serial.print("Rendering to bank "); Serial.println(__activeBank);
-    Serial.print("Objects to render: "); Serial.println(_graphics2D.shapeList->size());
+    Serial.print("Objects to render: "); Serial.println(_renderCanvas.shapeList->size());
     #endif
     if(__activeBank == 0 && !_isBank1Initialized){
         
@@ -88,31 +89,33 @@ void GPU::Render()
         #endif
     }
 
-    if(_graphics2D.shapeList != nullptr && _graphics2D.shapeList->size() > 0){
+    if(_renderCanvas.shapeList != nullptr && _renderCanvas.shapeList->size() > 0){
         #ifdef DEBUG_GPU
-        Serial.print("Rendering ");Serial.print(_graphics2D.shapeList->size() ); Serial.println(" graphics objects");
-        Serial.print("Empty flag: "); Serial.println(_graphics2D.shapeList->empty() ? "Empty" : "Contains Data");
+        Serial.print("Rendering ");Serial.print(_renderCanvas.shapeList->size() ); Serial.println(" graphics objects");
+        Serial.print("Empty flag: "); Serial.println(_renderCanvas.shapeList->empty() ? "Empty" : "Contains Data");
         #endif
-        for(auto &obj : *_graphics2D.shapeList){
+        for(auto &obj : *_renderCanvas.shapeList){
             if(__activeBank == 0 && !obj.drawnOnMem1){
                 Draw2DObject(&obj);
                 obj.drawnOnMem1 = true;
+                modified = true;
             }
             else if(__activeBank == 1 && !obj.drawnOnMem2){
                 Draw2DObject(&obj);
                 obj.drawnOnMem2 = true;
-            }
+                modified = true;
+            } 
         }
     }
 
     if(_renderMode == RenderMode::rmText){
         // in text mode, just clear the screen
         //graphics.clear();
-        DrawTextBuffer();
+        modified |= DrawTextBuffer();
     }
     // else if(_renderMode == RenderMode::rmDirect){
     //     // in direct mode, draw all objects every frame
-    //     for(auto &obj : *_graphics2D.shapeList){
+    //     for(auto &obj : *_renderCanvas.shapeList){
     //         Draw2DObject(&obj);
     //     }
     // }
@@ -120,8 +123,33 @@ void GPU::Render()
         // in buffered mode, only draw objects that haven't been drawn to the active bank yet
         
    //}
+
+    //mouse canvas    
+    // if(_mouseCanvas.shapeList != nullptr && _mouseCanvas.shapeList->size() > 0){
+    //     #ifdef DEBUG_GPU
+    //     Serial.print("Rendering mouse ");Serial.print(_mouseCanvas.shapeList->size() ); Serial.println(" graphics objects");
+    //     Serial.print("Empty flag: "); Serial.println(_mouseCanvas.shapeList->empty() ? "Empty" : "Contains Data");
+    //     #endif
+    //     for(auto &obj : *_mouseCanvas.shapeList){
+    //         if(__activeBank == 0 && !obj.drawnOnMem1){
+    //             // Serial.print("DRAWING MOUSE  ON BANK 1"); 
+    //             DrawMouseObject(&obj);
+    //             //Draw2DObject(&obj);
+    //             obj.drawnOnMem1 = true;
+    //             modified = true;
+    //         }
+    //         else if(__activeBank == 1 && !obj.drawnOnMem2){
+    //             // Serial.print("DRAWING MOUSE  ON BANK 2"); 
+    //             DrawMouseObject(&obj);
+    //             //Draw2DObject(&obj);
+    //             obj.drawnOnMem2 = true;
+    //             modified = true;
+    //         }
+    //     }
+    // }
     
-    graphics.setReady();
+    if(modified)
+        graphics.setReady();
     //Serial.print("Rendering frame: "); Serial.print(millis() - startTime); Serial.println(" ms");
 }
 
@@ -129,10 +157,11 @@ void GPU::Invalidate()
 {
     _isBank1Initialized = false;
     _isBank2Initialized = false;
-    for(auto &obj : *_graphics2D.shapeList){
+    for(auto &obj : *_renderCanvas.shapeList){
         obj.drawnOnMem1 = false;
         obj.drawnOnMem2 = false;
     }
+    _textBuffer.Invalidate();
 }
 
 bool GPU::activeBank()
@@ -140,11 +169,17 @@ bool GPU::activeBank()
     return __activeBank;
 }
 
-void GPU::DrawTextBuffer()
+void GPU::Add2DObject(const GraphicsObject2D &obj)
 {
+    _renderCanvas.shapeList->push_back(std::move(obj));
+}
+
+bool GPU::DrawTextBuffer()
+{
+    bool modified = false;
     if(_textBuffer.text == nullptr){
         Serial.print("No text to draw ");
-        return;
+        return false;
     }
     //Serial.print("Drawing from text buffer "); Serial.print(_textBuffer.width); Serial.print("x"); Serial.println(_textBuffer.height);
     for(int line = 0; line < _textBuffer.height; line++){
@@ -177,7 +212,7 @@ void GPU::DrawTextBuffer()
             // }
             if( character == 0)
                 continue;       
-    
+            modified = true;
             graphics.drawLine(col * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight ,(col + 1) * graphics.settings.charWidth, (line + 1) * graphics.settings.charHeight, isUnderlined ? graphics.settings.foregroundColor : bgColor);
             
             // Serial.print("["); Serial.print(millis()); Serial.print("] "); Serial.print("Drawing character "); Serial.print(character); Serial.print(" at ["); Serial.print(col); Serial.print(", "); Serial.print(line); Serial.print("] Is underlined: "); Serial.println(isUnderlined);
@@ -187,15 +222,85 @@ void GPU::DrawTextBuffer()
             
         }
     }
+    return modified;
 }
 
+// void GPU::ClearMouseObject(GraphicsObject2D *obj)
+// {
+//     Serial.print("Clearing Mouse object on bank ");Serial.print(__activeBank); Serial.print(" at "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
+
+//     auto objBounds = obj->getBounds();
+//     int bufferOffset = __activeBank * objBounds.height() * objBounds.width() * 2;
+//     if(__activeBank ? obj->drawnOnMem1 : obj->drawnOnMem2){
+//         //write back if bank data should be there
+//         graphics.drawBuffer(
+//             objBounds.x1(), 
+//             objBounds.y1(), 
+//             objBounds.width(),
+//             objBounds.height(), 
+//             obj->texture->colors + bufferOffset
+//         );
+//     }
+    
+//     if(__activeBank)
+//         obj->drawnOnMem2 = false;
+//     else
+//         obj->drawnOnMem1 = false;
+    
+// }
+
+// void GPU::DrawMouseObject(GraphicsObject2D *obj)
+// {
+
+//      Serial.print("Drawing Mouse object on bank ");Serial.print(__activeBank); Serial.print(" at ");  Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.print(obj->shape->vertecies[0].y);
+
+//     // if(obj->shape->numberOfVerticies > 1){
+//     //     Serial.print("\t "); Serial.print(obj->shape->vertecies[1].x); Serial.print(", "); Serial.print(obj->shape->vertecies[1].y);
+//     // }
+//     Serial.println();
+
+//     // buffer has 4 sections:
+//     // 1. bank 1 before storage
+//     // 2. bank 1 mouse cursor storage
+//     // 3. bank 2 before storage
+//     // 4. bank2 after storage
+//     int16_t x1 = obj->shape->vertecies[0].x;
+//     int16_t x2 = obj->shape->vertecies[1].x;
+//     int16_t y1 = obj->shape->vertecies[0].y;
+//     int16_t y2 = obj->shape->vertecies[1].y;
+    
+//     auto width = x2 - x1 ;
+//     auto height = y2 - y1;
+//     // Serial.print("Bounds: "); Serial.print(objBounds.x1());Serial.print(", "); Serial.print(objBounds.y1());    
+//     // Serial.print(" - W x H: "); Serial.print(objBounds.x2() - objBounds.x1());Serial.print(", "); Serial.print(objBounds.y2() - objBounds.y1());
+
+//     // Serial.print(" Verticies: "); Serial.print(x1);Serial.print(", "); Serial.print(y1);
+//     // Serial.print(" - W x H: "); Serial.print(x2 - x1);Serial.print(", "); Serial.println(y2 - y1);
+//     auto objBounds = obj->getBounds();
+//     int bufferOldOffset = __activeBank * height * width * 2;
+//     int bufferCursorOffset = (gpu.activeBank() * height * width * 2) + (height * width);
+        
+//     // Serial.print("Buffer old offset: "); Serial.println(bufferOldOffset);
+//     // Serial.print("Buffer mouse offset: "); Serial.println(bufferCursorOffset);
+
+//     //store to old
+//     graphics.readBuffer(objBounds.x1(),objBounds.y1(),width,height,obj->texture->colors + bufferOldOffset);
+//     //draw new
+//     graphics.drawBuffer(objBounds.x1(),objBounds.y1(),width,height,obj->texture->colors + bufferCursorOffset);
+    
+    
+//     if(__activeBank)
+//         obj->drawnOnMem2 = true;
+//     else
+//         obj->drawnOnMem1 = true;
+// }
 
 void GPU::Draw2DObject(GraphicsObject2D* obj)
 {
     // Serial.print("Drawing 2D object at "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
 
     // if(obj->shape->numberOfVerticies > 1){
-    //     Serial.print("\tv2 "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
+    //     Serial.print("\tv2 "); Serial.print(obj->shape->vertecies[1].x); Serial.print(", "); Serial.println(obj->shape->vertecies[1].y);
     // }
 
     // Serial.print("Shape type: "); Serial.print(ShapeName[ obj->shape->shape]);
@@ -340,19 +445,19 @@ void GPU::Set2DObjects(ShapeList<GraphicsObject2D>* list)
     // guard
     if(list == nullptr){
         // just clear our internal list
-        if(_graphics2D.shapeList){
-            _graphics2D.shapeList->clear();
+        if(_renderCanvas.shapeList){
+            _renderCanvas.shapeList->clear();
         }
         return;
     }
 
     // move elements from external list into GPU's internal list so GPU owns them.
     // This prevents GPU from pointing into caller-owned memory that may be deleted.
-    if(!_graphics2D.shapeList) _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
+    if(!_renderCanvas.shapeList) _renderCanvas.shapeList = new ShapeList<GraphicsObject2D>();
 
-    _graphics2D.shapeList->clear();
+    _renderCanvas.shapeList->clear();
     for(auto &obj : *list){
-        _graphics2D.shapeList->push_back(std::move(obj));
+        _renderCanvas.shapeList->push_back(std::move(obj));
     }
     list->clear();
 }
@@ -362,9 +467,9 @@ void GPU::ClearObjects()
     _isBank1Initialized = false;
     _isBank2Initialized = false;
 
-    if (_graphics2D.shapeList) {
-        if (_graphics2D.shapeList->size() > 0) {
-            _graphics2D.shapeList->clear();  // this runs each GraphicsObject2D dtor
+    if (_renderCanvas.shapeList) {
+        if (_renderCanvas.shapeList->size() > 0) {
+            _renderCanvas.shapeList->clear();  // this runs each GraphicsObject2D dtor
         }        
     }
 

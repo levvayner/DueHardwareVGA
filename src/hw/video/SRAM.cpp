@@ -150,9 +150,7 @@ void SRAM::DeviceWrite() {
 
 //construct byte from data bits
 uint8_t SRAM::ReadByte(uint32_t addr) {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
+   
 	DeviceOutput();
 	SetAddress(addr);
     PIOB->PIO_SODR = PIO_PB25;
@@ -168,13 +166,6 @@ uint8_t SRAM::ReadByte(uint32_t addr) {
 
 size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-       // while(ready_set) yield(); //not ready
-    #else
-        while(Busy(busyType));
-    #endif
-
-    
     DeviceOutput();
     uint32_t endAddr = addr + length;
     uint32_t curAddr = addr;
@@ -192,20 +183,14 @@ size_t SRAM::ReadBytes(uint32_t addr, uint8_t *buffer, uint32_t length, BusyType
             //Serial.print("Read byte 0x"); Serial.print(val); Serial.print(" at index "); Serial.print(curAddr - addr); Serial.print(" from address 0x");	  Serial.println(curAddr, HEX);
            
         #endif
-        curAddr++;
-        #ifndef DOUBLE_BUFFER
-        if((curAddr- addr)%BUFFER_STRIDE==0) while(Busy(busyType));
-        #endif
+        curAddr++;       
     }
     DeviceOff();
 	return curAddr - addr;
 }
 
 uint16_t SRAM::ReadShort(uint32_t addr)
-{
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
+{    
     DeviceOutput();
 	SetAddress(addr);
     PIOB->PIO_SODR = PIO_PB25;
@@ -223,12 +208,7 @@ uint16_t SRAM::ReadShort(uint32_t addr)
 }
 
 size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length, BusyType busyType)
-{
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-        while(Busy(busyType));
-    #endif
+{   
     DeviceOutput();
     uint32_t endAddr = addr + length;
     uint32_t curAddr = addr;
@@ -256,9 +236,6 @@ size_t SRAM::ReadBytes(uint32_t addr, uint16_t *buffer, uint32_t length, BusyTyp
 
 size_t SRAM::ReadString(uint32_t addr, uint8_t *buffer, uint32_t length)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
     DeviceOutput();
     uint32_t endAddr = addr + length;
     uint32_t curAddr = addr;
@@ -286,11 +263,6 @@ size_t SRAM::ReadString(uint32_t addr, uint8_t *buffer, uint32_t length)
 
 uint16_t SRAM::WriteBytes(uint32_t addr, uint8_t *data, uint32_t length, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-        while(Busy(busyType));
-    #endif
     //write buffer to screen
     #if defined(DEBUG_SRAM)
     unsigned long startTime, runTime;
@@ -335,12 +307,7 @@ uint16_t SRAM::WriteBytes(uint32_t addr, uint8_t *data, uint32_t length, BusyTyp
 }
 
 uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, BusyType busyType)
-{
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-        while(Busy(busyType));
-    #endif
+{    
     //write buffer to screen
     #if defined(DEBUG_SRAM)
     unsigned long startTime, runTime;    
@@ -417,24 +384,18 @@ uint16_t SRAM::FillBytes(uint32_t startAddr, uint8_t data, uint32_t length, Busy
 // }
 
 
-bool SRAM::WriteByte(uint32_t addr, uint8_t data, uint8_t retryCount, BusyType busyType) {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-        while(Busy(busyType));
-    #endif
+bool SRAM::WriteByte(uint32_t addr, uint8_t data, uint8_t retryCount, BusyType busyType) 
+{
 	_retries = 0;
 	bool done = false;
     SetAddress(addr);
    
-    //DeviceWrite();
-	//while (_retries <= retryCount && !done) {		        
-        
-		SetDataLines(data);
-		//toggle WE low for 100ns - 1000ns
-		PIOA->PIO_SODR = PIO_PA29; // D4 WE
-        NOP;
-        PIOA->PIO_CODR = PIO_PA29; // D4 WE
+
+    SetDataLines(data);
+    //toggle WE low for 100ns - 1000ns
+    PIOA->PIO_SODR = PIO_PA29; // D4 WE
+    NOP;
+    PIOA->PIO_CODR = PIO_PA29; // D4 WE
 		
 
 

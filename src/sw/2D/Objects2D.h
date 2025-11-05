@@ -17,6 +17,8 @@ struct Point2D{
     }
 };
 
+
+
 struct Shape2D {
     public:
     uint8_t numberOfVerticies;
@@ -30,6 +32,22 @@ struct Shape2D {
         return numberOfVerticies == other.numberOfVerticies &&
         style == other.style ;
         // TODO: iterate and compare
+    }
+
+    void move(int16_t x, int16_t y){
+        //get move distance based on first verticie
+        auto moveX = x - vertecies[0].x;
+        auto moveY = y - vertecies[0].y;
+        // Serial.print("Updating "); Serial.print(numberOfVerticies); Serial.println(" verticies");
+        // Serial.print("Moving "); Serial.print(moveX); Serial.print(", "); Serial.println(moveY);
+        for(int idx=0; idx < numberOfVerticies;idx++){
+            vertecies[idx].x += moveX;
+            vertecies[idx].y += moveY;
+        }
+    }
+
+    void setFillStyle(FillStyle style){
+        this->style = style;
     }
 };
 
@@ -142,10 +160,12 @@ struct Triangle2D: public Shape2D{
 
 struct Rectangle2D : public Shape2D{
     public:
-    int16_t x1() {return vertecies[0].x;};
-    int16_t x2() {return vertecies[1].x;};
-    int16_t width() {return vertecies[0].y;};
-    int16_t height() {return vertecies[1].y;};
+    inline int16_t x1() {return vertecies[0].x;};
+    inline int16_t x2() {return vertecies[1].x;};
+    inline int16_t y1() {return vertecies[0].y;};
+    inline int16_t y2() {return vertecies[1].y;};
+    inline int16_t width() {return vertecies[1].x - vertecies[0].x;};
+    inline int16_t height() {return vertecies[1].y - vertecies[0].y;};
 
     // int16_t width(){ return x2() > vertecies[1].x ? vertecies[1].x - vertecies[0].x : vertecies[0].x - vertecies[1].x; } // abs(x2 - x1);}
     // int16_t height(){ return vertecies[1].y > vertecies[0].y ? vertecies[1].y - vertecies[0].y: vertecies[0].y - vertecies[1].y; } // abs(y2 - y1);}

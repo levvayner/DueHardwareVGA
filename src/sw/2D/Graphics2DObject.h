@@ -9,8 +9,8 @@ struct GraphicsObject2D{
     Texture2D* texture = nullptr;
     char* text = nullptr;
     uint8_t color;
-    bool drawnOnMem1 = 0x0;
-    bool drawnOnMem2 = 0x0;
+    bool drawnOnMem1 = false;
+    bool drawnOnMem2 = false;
 
     //texture by pointer
     GraphicsObject2D(Shape2D* shape, Texture2D* texture, const char* text = ""){
@@ -115,6 +115,31 @@ struct GraphicsObject2D{
             delete text;
             text = nullptr;
         }
+    }
+
+    Rectangle2D getBounds(){
+        int16_t minX = shape->vertecies[0].x, maxX = shape->vertecies[0].x;
+        int16_t minY = shape->vertecies[0].y, maxY = shape->vertecies[0].y;
+        for(int idx=0; idx < shape->numberOfVerticies;idx++){
+            auto verticieX = shape->vertecies[idx].x;
+            auto verticieY = shape->vertecies[idx].y;
+            if(minX > verticieX)
+                minX = verticieX;
+            if(minY > verticieY)
+                minY = verticieY;
+
+            if(maxX < verticieX)
+                maxX = verticieX;
+            if(maxY < verticieY)
+                maxY = verticieY;
+
+        }
+        return Rectangle2D(minX,minY, maxX,maxY);
+    }
+
+    void invalidate(){
+        this->drawnOnMem1 = false;
+        this->drawnOnMem1 = false;
     }
 };
 #endif

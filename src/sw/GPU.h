@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <utility>
 
-
+#define CRITICAL_MEMORY_RESTART_THRESHOLD 512
 
 enum RenderMode{
     rmText = 0,
@@ -38,33 +38,21 @@ class GPU
 
         /// @brief Add a 2D object to the GPU
         /// @param obj The 2D object to add
-        void Add2DObject(const GraphicsObject2D& obj){
-            // if(_graphics2D.shapeList == nullptr){
-            //     _graphics2D.shapeList = new ShapeList<GraphicsObject2D>();
-            // }   
-            Serial.println(_graphics2D.shapeList->size());
-            Serial.print(obj.shape->vertecies[0].x); Serial.print(", "); Serial.println(obj.shape->vertecies[0].y);
-            _graphics2D.shapeList->push_back(obj);
-        }
-        // void Add2DObject(Shape2D shape, Texture2D texture){
-        //     _graphics2D.shapeList->push_back(*new GraphicsObject2D(shape, texture));
-        //     Serial.println(_graphics2D.shapeList->size());
-        //     Serial.print(shape.vertecies[0].x); Serial.print(", "); Serial.println(shape.vertecies[0].y);
-        // }
-
+        void Add2DObject(const GraphicsObject2D& obj);    
         void Set2DObjects(ShapeList<GraphicsObject2D>* list);
         void ClearObjects();
 
         /// Get the list of 2D objects
         ShapeList<GraphicsObject2D>*  Get2DObjects(){
-            return _graphics2D.shapeList;        
+            return _renderCanvas.shapeList;        
         }
+        //hand over control to GPU for objects
         void Set2DObjects(ShapeList<GraphicsObject2D>** list){
-            _graphics2D.shapeList = *list;        
+            _renderCanvas.shapeList = *list;        
         }
 
         GraphicsObject2D* Get2DObjectAt(int16_t x, int16_t y ){
-            for(auto &o : *_graphics2D.shapeList){
+            for(auto &o : *_renderCanvas.shapeList){
                 //Serial.print("Checking object at "); Serial.print(o.shape->vertecies[0].x); Serial.print(", "); Serial.println(o.shape->vertecies[0].y);
                 if(o.shape->vertecies[0].x == x && o.shape->vertecies[0].y == y){
                     //Serial.print("Found object at "); Serial.print(x); Serial.print(", "); Serial.println(y);
@@ -85,15 +73,24 @@ class GPU
             _renderMode = renderMode;
         }
 
+        void SetMouseCanvas(ShapeList<GraphicsObject2D>* mouseCursor){
+            this->_mouseCanvas.shapeList = mouseCursor;
+        }
+        //void ClearMouseObject(GraphicsObject2D *obj);
+        //void DrawMouseObject(GraphicsObject2D * obj);
+        
+
     protected:
-        void Draw2DObject(GraphicsObject2D* shape);
-        void DrawTextBuffer();
+        
+        void Draw2DObject(GraphicsObject2D * shape);
+        bool DrawTextBuffer();
     private:
         //VRAM* _graphics;
         RenderMode _renderMode;
         TextBuffer _textBuffer;
         //bool _activeBank = 0;
-        Graphics2D _graphics2D;
+        Graphics2D _renderCanvas;
+        Graphics2D _mouseCanvas;
         bool _isBank1Initialized = false;
         bool _isBank2Initialized = false;
 

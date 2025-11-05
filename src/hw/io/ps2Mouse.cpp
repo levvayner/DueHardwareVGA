@@ -78,7 +78,7 @@ bool PS2Mouse::writeByte(char data) {
 
     // wait for mouse to switch modes
     unsigned long startTime = millis();
-    while (((digitalRead(_clockPin) == LOW) || (digitalRead(_dataPin) == LOW)) && millis() - startTime < 1000)
+    while (((digitalRead(_clockPin) == LOW) || (digitalRead(_dataPin) == LOW)) && millis() - startTime < 4000)
         ;
 
     // put a hold on the incoming data
@@ -186,7 +186,7 @@ void PS2Mouse::setResolution(int resolution) {
 bool PS2Mouse::waitForClockState(int expectedState) {
     unsigned long startTime = millis();
     while (digitalRead(_clockPin) != expectedState)
-        if(millis() - startTime > 1000) 
+        if(millis() - startTime > 400) 
             return false;
     return true;
 }

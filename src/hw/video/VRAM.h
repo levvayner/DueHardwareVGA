@@ -3,14 +3,24 @@
 #include "SRAM.h"
 #include "VRAMSettings.h"
 #include "sw/Color.h"
-#include "sw/Chars.h"
+#include "sw/Text/CharsS.h"
+#include "sw/Text/CharsM.h"
+#include "sw/Text/CharsL.h"
 #include "sw/2D/Graphics2D.h"
 #include "sw/3D/Graphics3D.h"
 
-
+enum FontChoice{
+    Small = 0,
+    Medium = 1,
+    Large = 2,
+    FONT_CHOICE_COUNT
+};
 
 class VRAM : public SRAM{
     
+    protected:
+    void updateFont();
+
     public:
     VRAMSettings settings = VRAMSettings(800, 600);
 
@@ -22,8 +32,9 @@ class VRAM : public SRAM{
 
     bool isWaiting();
     bool setReady(bool clear = false);
+    bool selectFont(FontChoice choice);
 
-    void updateFont();
+    
     
 
     virtual bool drawText(int x, int y, const char * text, byte color = 0xFF, byte backgroundColor = 0x0, bool clearBackground = true, bool useFrameBuffer = false, BusyType busyType = btInvalid);
@@ -130,7 +141,7 @@ class VRAM : public SRAM{
     virtual bool render();
 
 
-    virtual inline void SetRenderMode(BusyType waitType){ _waitType = waitType;}
+    //virtual inline void SetRenderMode(BusyType waitType){ _waitType = waitType;}
 
 
     static inline  uint8_t mulitplyColors(uint8_t a, uint8_t b) {
@@ -164,8 +175,12 @@ class VRAM : public SRAM{
     private:
     uint8_t *_frameBuffer;
     char _buf[16];
+    FontChoice _selectedFont = Small;
+    // BusyType _waitType;
+    //uint8_t **CHARS;
+    byte CHAR_DIR = 0;
+    const uint8_t* CHARS[96];
 
-    BusyType _waitType;
 
 };
 #endif

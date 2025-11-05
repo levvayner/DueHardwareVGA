@@ -54,10 +54,46 @@ bool VRAM::setReady(bool clear){
     __isBufferReadySet = !clear;        
     return true;
 }
+bool VRAM::selectFont(FontChoice choice)
+{
+    _selectedFont = choice;
+    Serial.print("Updating font to "); 
+    Serial.print(choice == Small ? "Small" : choice == Medium ? "Medium" :  choice == Large ? "Large" : "Unknown");
+    updateFont();
+}
 void VRAM::updateFont()
 {
-    settings.charHeight = CHAR_HEIGHT;
-    settings.charWidth = CHAR_WIDTH;
+    switch (_selectedFont)
+    {
+    case Small:
+        settings.charHeight =  S_CHAR_HEIGHT;
+        settings.charWidth = S_CHAR_WIDTH;  
+        CHAR_DIR = S_CHAR_DIR;
+
+        for (int i = 0; i < 96; ++i) {
+            CHARS[i] = S_CHARS[i];
+        }        
+        break;
+    
+    case Medium:
+        settings.charHeight =  M_CHAR_HEIGHT;
+        settings.charWidth = M_CHAR_WIDTH; 
+        CHAR_DIR = M_CHAR_DIR;   
+        for (int i = 0; i < 96; ++i) {
+            CHARS[i] = M_CHARS[i];
+        }
+        break;  
+    case Large:
+        settings.charHeight =  L_CHAR_HEIGHT;
+        settings.charWidth = L_CHAR_WIDTH;    
+        CHAR_DIR = L_CHAR_DIR;
+        for (int i = 0; i < 96; ++i) {
+            CHARS[i] = L_CHARS[i];
+        }  
+        break;
+    default:
+        break;
+    }
 }
 #else
 bool VRAM::isWaiting(){ return false;}
@@ -67,10 +103,6 @@ bool VRAM::setReady(bool readyState = true){ return true;}
 
 bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundColor, bool clearBackground, bool useFrameBuffer, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     uint16_t charOffsetY = 0, charOffsetX = 0;   
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
@@ -79,6 +111,7 @@ bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
             //TODO: implement going to next line
             continue;
         }
+        auto charIdx = (uint8_t)(text[idx] - 32);
         uint16_t bufferSize = settings.charWidth * (settings.charHeight + 1);
         byte letterBuffer[bufferSize]; 
         //Serial.print("Setting letter background color to "); Serial.println(backgroundColor,DEC);
@@ -88,37 +121,38 @@ bool VRAM::drawText(int x, int y, const char *text, byte color, byte backgroundC
             readBuffer(x,y,settings.charWidth, settings.charHeight,letterBuffer);
         }
         int bytesPerRow = ceil((float)(settings.charWidth) / 8.0f);
+        int bytesPerCol = ceil((float)(settings.charHeight) / 8.0f);
 
         //Serial.print("Writing letter "); Serial.print(text[idx]); Serial.print(" with dimentions ");Serial.print(settings.charWidth);Serial.print(", "); Serial.print(settings.charHeight); Serial.print(" with "); Serial.print(bytesPerRow); Serial.println(" bytes per row");
         //get one row at a time
-        for(int row = 0; row < settings.charHeight;row++){
-            for(int col=0;col < bytesPerRow;col++){
-                for(int bitIdx = 0; bitIdx < 8; bitIdx++){
-                    auto charIdx = (uint8_t)(text[idx] - 32);
-                    uint16_t coldIdx = col + row *  bytesPerRow;
-                    byte isSet = CHARS[charIdx][coldIdx] & (1 << bitIdx);
-                    //Serial.print("Setting bit");
-                    if(!isSet && !clearBackground) continue;
-                    letterBuffer[row*settings.charWidth + col*8 + bitIdx] = isSet ?  color : backgroundColor ;
+        if(CHAR_DIR == 0){ //horizontal
+            for(int row = 0; row < settings.charHeight;row++){
+                for(int col=0;col < bytesPerRow;col++){
+                    for(int bitIdx = 0; bitIdx < 8; bitIdx++){
+                        
+                        uint16_t coldIdx = col + row *  bytesPerRow;
+                        byte isSet = CHARS[charIdx][coldIdx] & (1 << bitIdx);
+                        if(!isSet && !clearBackground) continue;
+                        letterBuffer[row*settings.charWidth + col*8 + bitIdx] = isSet ?  color : backgroundColor ;
+                    }
                 }
+            }
+        } else{
+            //vertical
+            //for each column of character
+            for(uint16_t charX = 0;charX < settings.charWidth;charX ++){
+                byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
+
+
+                for(int charY = 0; charY < settings.charHeight; charY++){
+                    byte isSet = column & (1 << charY);
+                    if(!isSet && !clearBackground) continue;
+                    letterBuffer[charY*settings.charWidth + charX] =  isSet ?  color : backgroundColor ;
+                }
+                
             }
         }
         
-        // //for each column of character
-        // for(uint16_t charX = 0;charX < settings.charWidth;charX ++){
-        //     byte column = charX < settings.charWidth - 1 ? CHARS[(uint8_t)(text[idx] - 32)][charX] : 0;
-
-
-        //     for(int charY = 0; charY < settings.charHeight; charY++){
-        //         byte isSet = column & (1 << charY);
-        //         if(!isSet && !clearBackground) continue;
-        //         letterBuffer[charY*settings.charWidth + charX] =  isSet ?  color : backgroundColor ;
-        //     }
-            
-        // }
-        #ifndef DOUBLE_BUFFER
-        while(Busy(busyType));
-        #endif
         for(int line = 0; line < settings.charHeight; line++){            
             WriteBytes(
                 ((y + charOffsetY + line) << settings.horizontalBits) + x + charOffsetX,
@@ -160,10 +194,6 @@ bool VRAM::drawText(int x, int y, char text, Color color,  Color backgrounColor,
 
 bool VRAM::drawTextToBuffer(const char* text, byte *buffer, uint16_t stride, byte color)
 {
-
-    // #ifdef DOUBLE_BUFFER
-    //// while(ready_set) yield(); //not ready
-    // #endif
     uint16_t charOffsetY = 0, charOffsetX = 0;   
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
@@ -200,10 +230,6 @@ bool VRAM::drawTextToBuffer(const char* text, byte *buffer, uint16_t stride, byt
 
 bool VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, uint16_t stride)
 {
-
-    // #ifdef DOUBLE_BUFFER
-    //// while(ready_set) yield(); //not ready
-    // #endif
     uint16_t charOffsetY = 0, charOffsetX = 0;   
     //for each character
     for(size_t idx = 0; idx < strlen(text);idx++)    
@@ -245,11 +271,6 @@ bool VRAM::drawTextToBuffer(const char *text, const byte *colors, byte *buffer, 
 
 bool VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield();
-    //while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     for(int line = 0; line < height; line++){            
         WriteBytes(
             ((y + line) << settings.horizontalBits) + x,
@@ -262,15 +283,7 @@ bool VRAM::drawBuffer(int x, int y, int width, int height, const byte *buffer, B
 }
 
 bool VRAM::drawPixel(int x, int y, byte color, BusyType busyType)
-{
-
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-        if(busyType == btInvalid) busyType = _waitType;
-    #endif
-
-    
+{    
     if(x < 0 || x > settings.screenWidth) return false;
     if(y < 0 || y > settings.screenHeight) return false;
     return WriteByte((y << settings.horizontalBits) + x, color, busyType);
@@ -278,25 +291,16 @@ bool VRAM::drawPixel(int x, int y, byte color, BusyType busyType)
 
 bool VRAM::drawPixel(int x, int y, Color color, BusyType busyType)
 {
-    if(busyType == btInvalid) busyType = _waitType;
     return drawPixel(x,y, color.ToByte());
 }
 
 uint8_t VRAM::readPixel(int x, int y, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     return ReadByte((y << settings.horizontalBits) + x);
 }
 
 bool VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     for(int line=0;line < height;line++){
         ReadBytes(
             ((line + y) << settings.horizontalBits) + x,
@@ -309,10 +313,6 @@ bool VRAM::readBuffer(int x, int y, int width, int height, uint8_t *buffer, Busy
 
 bool VRAM::drawLine(int x1, int y1, int x2, int y2, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     //char buf[256];
     
     // find slope, increment from x1 to x2, changing y by slope
@@ -382,9 +382,6 @@ bool VRAM::drawLine(Point2D start, Point2D end, Color color, BusyType busyType)
 
 bool VRAM::drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, byte color)
 {  
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif 
     _drawTriangle(x1, y1, x2, y2, x3, y3, color, false);
     return true;
     
@@ -393,11 +390,6 @@ bool VRAM::drawTriangle(int x1, int y1, int x2, int y2, int x3, int y3, byte col
 
 bool VRAM::drawRectangle(int x1, int y1, int width, int height, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #else
-    if(busyType == btInvalid) busyType = _waitType;
-    #endif
     //TODO: clip to screen
     //draw buffered top and bottom
     if(width < 0 || height < 0) return false;
@@ -445,10 +437,6 @@ bool VRAM::drawRectangle(Point2D topLeft, Point2D bottomRight, Color color, Busy
 
 bool VRAM::fillRectangle(int x1, int y1, int width, int height, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     int x = x1;
     int y = y1;
     if(x1 < 0) { width += x1; x = 0; }
@@ -480,10 +468,6 @@ bool VRAM::fillRectangle(Point2D topLeft, Point2D bottomRight, Color color, Busy
 
 bool VRAM::drawCircle(int centerX, int centerY, int radius, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     int x = 0, y = -radius, p = -radius;
     while(x < -y){
         if(p > 0){
@@ -492,7 +476,6 @@ bool VRAM::drawCircle(int centerX, int centerY, int radius, byte color, BusyType
         } else{
             p += 2*x + 1;
         }
-        //while(Busy());
         drawPixel(centerX + x, centerY + y, color, busyType);
         drawPixel(centerX - x, centerY + y, color, busyType);
         drawPixel(centerX + x, centerY - y, color, busyType);
@@ -510,10 +493,6 @@ bool VRAM::drawCircle(int centerX, int centerY, int radius, byte color, BusyType
 
 bool VRAM::drawArc(int x, int y, int startAngle, int endAngle, int radius, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     int i;
     double radian;
 
@@ -530,10 +509,6 @@ bool VRAM::drawArc(int x, int y, int startAngle, int endAngle, int radius, byte 
 
 bool VRAM::fillCircle(int centerX, int centerY, int radius, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     long x = 0, y = -radius, p = -radius;
     int startX = 0, width = 0;
     while(x < -y){
@@ -590,24 +565,17 @@ bool VRAM::fillCircle(int centerX, int centerY, int radius, byte color, BusyType
 
 bool VRAM::render()
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
     unsigned long startTime = millis();
-   // Serial.print("Rendering frame .. ");
+    // Serial.print("Rendering frame .. ");
     for(uint16_t line = 0; line < settings.screenHeight; line++){
         WriteBytes(line << settings.horizontalBits, _frameBuffer + (line * settings.screenWidth), settings.screenWidth);
     }
-    Serial.print(" completed in "); Serial.print(millis() - startTime); Serial.println(" ms.");
+   // Serial.print(" completed in "); Serial.print(millis() - startTime); Serial.println(" ms.");
     return true;
 }
 
 bool VRAM::drawOval(int centerX, int centerY, int width, int height, byte color, BusyType busyType)
-{
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
+{   
     int hh = height * height;
     int ww = width * width;
     int hhww = hh * ww;
@@ -625,7 +593,6 @@ bool VRAM::drawOval(int centerX, int centerY, int width, int height, byte color,
         int x1 = x0 - (dx - 1);  // try slopes of dx - 1 or more
         for ( ; x1 > 0; x1--){        
             if (x1*x1*hh + y*y*ww <= hhww){
-                //while(Busy());
                 drawLine(centerX - x1, centerY - y, centerX - x0, centerY - y, color, btVolatile);
                 drawLine(centerX + x0, centerY + y, centerX + x1, centerY + y, color, btVolatile);
                 drawLine(centerX + x0, centerY - y, centerX + x1, centerY - y, color, btVolatile);
@@ -633,7 +600,6 @@ bool VRAM::drawOval(int centerX, int centerY, int width, int height, byte color,
                 break;
             }
             else{
-                //while(Busy());
                 drawPixel(centerX - x1, centerY - y, color, btVolatile);
                 drawPixel(centerX + x0, centerY + y, color, btVolatile);
                 drawPixel(centerX + x0, centerY - y, color, btVolatile);
@@ -664,10 +630,6 @@ bool VRAM::drawOval(int centerX, int centerY, int width, int height, byte color,
 
 bool VRAM::fillOval(int centerX, int centerY, int width, int height, byte color, BusyType busyType)
 {
-    #ifdef DOUBLE_BUFFER
-   // while(ready_set) yield(); //not ready
-    #endif
-    if(busyType == btInvalid) busyType = _waitType;
     int hh = height * height;
     int ww = width * width;
     int hhww = hh * ww;
@@ -707,7 +669,6 @@ bool VRAM::fillOval(int centerX, int centerY, int width, int height, byte color,
             leftEdge = 0;
             diameter -= (centerX - x1) * -1;
         }
-        //while(Busy());
         if(centerY - y > 0){
             //drawLine(centerX - x1, centerY - y, centerX + x1, centerY - y, color);
             FillBytes(((centerY - y) << settings.horizontalBits) + leftEdge, color, diameter, btVolatile);

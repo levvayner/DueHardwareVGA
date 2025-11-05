@@ -7,9 +7,11 @@
 #include "../Pins.h"
 
 #include "PS2Mouse.h"
+#define USE_USB_MOUSE 0
 
 #include "usb.h"
 #define DPI 4
+#define CURSOR_SIZE 8
 enum MousePointer{
     pointerFat = 0,
     pointerSkinny = 1,
@@ -17,13 +19,13 @@ enum MousePointer{
     pointerSmall = 3,
     pointerNone = 4
 };
-#if not defined(MouseButton)
-enum MouseButton {
-	LEFT_BUTTON   = 0x01,
-	MIDDLE_BUTTON = 0x02,
-	RIGHT_BUTTON  = 0x04
-};
-#endif
+// #if not defined(MouseButton)
+// enum MouseButton {
+	// LEFT_BUTTON   = 0x01,
+	// MIDDLE_BUTTON = 0x02,
+	// RIGHT_BUTTON  = 0x04
+// };
+// #endif
 
 struct MouseClickArgs{
     Point2D location;
@@ -50,6 +52,12 @@ struct MouseWheelArgs{
 
 class VGAMouse{
     public:
+    VGAMouse()
+        :   _mouseAreaObject(new GraphicsObject2D( new Rectangle2D(_mouseLocation.x, _mouseLocation.y, CURSOR_SIZE,CURSOR_SIZE),new Texture2D(CURSOR_SIZE,CURSOR_SIZE*4,_mouseCursorBuffer)))
+    {
+        _initializedPs2 = false;
+        _initializedUsb = false;
+    }
 
     inline ~VGAMouse() { 
         if(_initializedPs2 || _initializedUsb){
@@ -81,8 +89,12 @@ class VGAMouse{
     inline void setPosition(uint16_t x, uint16_t y){ 
         _mouseLocation.x = (int)x; 
         _mouseLocation.y = (int)y;
-        _pendingMove = true;
+        _pendingMoveBank1 = true;
+        _pendingMoveBank2 = true;
     }
+    inline void setPosition(Point2D pos){
+        setPosition(pos.x,pos.y);
+    } 
     virtual inline MousePointer getPointer(){ return _pointer;}
     virtual inline void setPointer(MousePointer pointer){ _pointer = pointer;}
 
@@ -99,20 +111,24 @@ class VGAMouse{
     protected:
 
     void drawCursor(int x, int y, int width, int height);
+    void clearCursor();
     
     private:
     bool _initializedPs2 = false, _initializedUsb = false;
 
     private:
     
-    Point2D _mouseLocation, _previousLocation;
-    Shape2D *_mouseArea;
-    GraphicsObject2D* _mouseAreaObject;
+    Point2D _mouseLocation, _previousLocationBank1, _previousLocationBank2;
+    
+    GraphicsObject2D * _mouseAreaObject;
+    // GraphicsObject2D * _mouseAreaObjectBank1;
+    // GraphicsObject2D * _mouseAreaObjectBank2;
+    ShapeList<GraphicsObject2D> * _mouseShapes;
     int _zoom = 8;
     char key = 0;
     
 
-    uint8_t *mouseBuffer = nullptr;
+    //uint8_t *mouseBuffer = nullptr;
     uint8_t _mouseCursorBuffer[64];
     MousePointer _pointer = pointerFat;
     uint8_t _pointers[4][8] = {
@@ -130,9 +146,16 @@ class VGAMouse{
     #endif
     MouseData _lastData;
     bool _pendingEvent = false;
-    bool _pendingMove = false;
+    bool _pendingMoveBank1 = true;
+    bool _pendingMoveBank2 = true;
     bool _pendingRequestRedraw = false;
 
+    bool _pendingRestoreBank1 = false;
+    bool _pendingRestoreBank2 = false;
+
+    uint16_t _readInterval = 100;
+    private:
+    bool tryInitializeMouse(uint8_t clk, uint8_t data);
 };
 extern VGAMouse mouse;
 #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0

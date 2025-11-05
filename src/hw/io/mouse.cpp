@@ -17,10 +17,10 @@ void mouseMoved(){
     int16_t newX = usbMouse.getXChange() / DPI;
     int16_t newY = usbMouse.getYChange() / DPI;
    
-    // sprintf(buf,"moving mouse to (%d,%d)",
-    //    newX, newY
-    // );
-    // Serial.println(buf);
+    sprintf(buf,"moving mouse to (%d,%d)",
+       newX, newY
+    );
+    Serial.println(buf);
 
     mouse.setPosition(newX, newY);
     if(mouse.onMouseMove != nullptr)
@@ -54,25 +54,35 @@ void mouseDragged(){
 #endif
 void VGAMouse::begin(uint16_t intervalMs)
 {   
-    if(!_initializedPs2){
-        _mouse = new PS2Mouse(PS2_CLK2, PS2_DATA2);
-        if(_mouse->begin()) {
-            _mouseReadTimer = new DueTimer(Timer.getAvailable());
-            _mouseReadTimer->attachInterrupt(vgaMouseInputEventHandler);
-            _mouseReadTimer->start(intervalMs * 1000);
-            _initializedPs2 = true;
-            Serial.println("Initialized PS2 Mouse");
+    _readInterval = intervalMs;
+    _mouseShapes = new ShapeList<GraphicsObject2D>();
+    if(!_initializedPs2){        
+        //try usb port
+        Serial.print("Initialing PS2 Mouse.. using top USB port..");
+        _initializedUsb = tryInitializeMouse(USB_CLK2, USB_DATA2);
+        if(!_initializedUsb){
+            Serial.print(" failed! Trying PS2 port ...");
+            _initializedPs2 = tryInitializeMouse(PS2_CLK,PS2_DATA);
         }
-        _mouseArea = new Rectangle2D(_mouseLocation.x, _mouseLocation.y, 8,8);
-        _mouseAreaObject =  new GraphicsObject2D( _mouseArea, new Texture2D(8,8,_mouseCursorBuffer));
-        //gpu.Add2DObject(*_mouseAreaObject);
+        if(!_initializedPs2 && !_initializedUsb){
+            Serial.println("Failed to initialize mouse!");            
+        }else
+            Serial.println(" Initialized!");
+            
+        //_mouseArea = new Rectangle2D(_mouseLocation.x, _mouseLocation.y, 8,8);
+        //_mouseAreaObject =  GraphicsObject2D(new Rectangle2D(_mouseLocation.x, _mouseLocation.y, _mouseLocation.x+ 8, _mouseLocation.x + 8), new Texture2D(8,8,_mouseCursorBuffer));
+        _mouseShapes->push_back(*_mouseAreaObject);
+        gpu.SetMouseCanvas(_mouseShapes);
     }
     #if defined(USE_USB_MOUSE) && USE_USB_MOUSE > 0
     if(!_initializedUsb){
+        Serial.print("Initializing mouse using native USB...");
         _mouseUsb = new MouseController(usb);
         if(_mouseUsb != nullptr){
             _initializedUsb = true;
-            Serial.println("Initialized USB Mouse");
+            Serial.println(" Initialized USB Mouse");            
+        } else{
+            Serial.println(" Failed!");
         }
     }     
     #endif
@@ -95,8 +105,17 @@ void VGAMouse::end()
 void VGAMouse::drawCursor(int x, int y, int width, int height)
 {
     if(!_initializedPs2 && !_initializedUsb) return;
-    memcpy(_mouseCursorBuffer, mouseBuffer, width*height);
-        for(int line=0;line<height; line++){
+    //auto _mouseAreaObject = gpu.activeBank() ? _mouseAreaObjectBank2 : _mouseAreaObjectBank1;
+    auto activeBank = gpu.activeBank();
+    int bufferOldOffset = activeBank * height * width * 2;
+    int bufferCursorOffset = (activeBank * height * width * 2) + (height * width);
+    
+
+    
+    graphics.readBuffer(x, y,width,height, _mouseCursorBuffer);
+    memcpy(_mouseAreaObject->texture->colors + bufferOldOffset,_mouseCursorBuffer, width*height);
+    
+    for(int line=0;line<height; line++){
         uint8_t cursorRowPixels = _pointers[(int)_pointer][line];
         for(int row=0;row < width; row++){
             if(cursorRowPixels & (0x1 << (7-row)))
@@ -104,10 +123,76 @@ void VGAMouse::drawCursor(int x, int y, int width, int height)
         }
     }
     if(_mouseCursorBuffer != nullptr){
-        ;    
-        //    graphics.drawBuffer(_mouseLocation.x, _mouseLocation.y, width,height, _mouseCursorBuffer, btVertical);
         
+        auto objBounds = _mouseAreaObject->getBounds();
+        auto width = objBounds.x2() - objBounds.x1() ;
+        auto height = objBounds.y2() - objBounds.y1();
+        
+        // Serial.print("Writing mouse texture to color offset: "); Serial.print(bufferOldOffset); Serial.print(" on bank "); Serial.println(activeBank);
+        memcpy(_mouseAreaObject->texture->colors + bufferCursorOffset,_mouseCursorBuffer, width* height);
+        
+        // Serial.print("Bounds: "); Serial.print(objBounds.x1());Serial.print(", "); Serial.print(objBounds.y1());    
+        // Serial.print(" - W x H: "); Serial.print(objBounds.x2() - objBounds.x1());Serial.print(", "); Serial.print(objBounds.y2() - objBounds.y1());
+
+        // Serial.print(" Verticies: "); Serial.print(x1);Serial.print(", "); Serial.print(y1);
+        // Serial.print(" - W x H: "); Serial.print(x2 - x1);Serial.print(", "); Serial.println(y2 - y1);
+        
+            
+        // Serial.print("Buffer old offset: "); Serial.println(bufferOldOffset);
+        // Serial.print("Buffer mouse offset: "); Serial.println(bufferCursorOffset);
+
+        //store to old
+        #ifdef DEBUG_GPU
+        Serial.print("Saving mouse texture to color offset: "); Serial.print(bufferOldOffset); Serial.print(" on bank "); Serial.println(activeBank);
+        #endif
+        graphics.readBuffer(objBounds.x1(),objBounds.y1(),width,height,_mouseAreaObject->texture->colors + bufferOldOffset);
+        //draw new
+        #ifdef DEBUG_GPU
+        Serial.print("Drawing mouse texture to color offset: "); Serial.print(bufferCursorOffset); Serial.print(" on bank "); Serial.println(activeBank);
+        #endif
+        graphics.drawBuffer(objBounds.x1(),objBounds.y1(),width,height,_mouseAreaObject->texture->colors + bufferCursorOffset);
+
+        // Serial.print("Result old buffer data:");
+        // for(int idx = 0; idx < width * height; idx++){
+        //     if(idx % width == 0)
+        //         Serial.println();
+
+        //     Serial.print("0x"); Serial.print(_mouseAreaObject->texture->colors[idx + bufferOldOffset]);Serial.print(", ");
+        // }
+        // Serial.println();
+        // Serial.print("Result new buffer data:");
+        // for(int idx = 0; idx < width * height; idx++){
+        //     if(idx % width == 0)
+        //         Serial.println();
+
+        //     Serial.print("0x"); Serial.print(_mouseAreaObject->texture->colors[idx + bufferCursorOffset]);Serial.print(", ");
+        // }
+        
+        
+        if(activeBank)
+            _mouseAreaObject->drawnOnMem2 = true;
+        else
+            _mouseAreaObject->drawnOnMem1 = true;
+       
+
+    //     // Serial.print("Should draw mouse object at ");
+    //     // Serial.print(_mouseAreaObject->shape->vertecies[0].x);
+    //     // Serial.print(", ");
+    //     // Serial.print(_mouseAreaObject->shape->vertecies[0].y);
+
+    //     // Serial.print(" with width");
+    //     // Serial.print(_mouseAreaObject->shape->vertecies[1].x - _mouseAreaObject->shape->vertecies[0].x);
+    //     // Serial.print(" and height ");
+    //     // Serial.print(_mouseAreaObject->shape->vertecies[1].y - _mouseAreaObject->shape->vertecies[0].y);
+    //     // Serial.println();        
     }
+}
+
+void VGAMouse::clearCursor()
+{
+    //determine current bank
+    // restore to proper position of that bank
+
 }
 
 void VGAMouse::onTick()
@@ -115,6 +200,7 @@ void VGAMouse::onTick()
     if(!_initializedPs2 && !_initializedUsb) return;
     bool pendingEvent = false;
     bool pendingMove = false;
+    auto systemPending = gpu.activeBank() ? _pendingMoveBank2 : _pendingMoveBank1;
     uint8_t buttonClicked = 0;
 
     if(_initializedPs2){
@@ -134,7 +220,7 @@ void VGAMouse::onTick()
     //usb 
     if(_initializedUsb){
         pendingEvent = _pendingEvent;
-        pendingMove = _pendingMove;
+        pendingMove = systemPending;
     }   
 
     if(!pendingEvent && !pendingMove) return;
@@ -151,8 +237,14 @@ void VGAMouse::onTick()
 
     if(pendingMove){
         auto settings = gpu.GetSettings();
-        if(!_pendingMove) // update previous location is not already pending a move
-            _previousLocation = Point2D(_mouseLocation.x, _mouseLocation.y);
+        if(!systemPending){ // update previous location is not already pending a move
+            if(gpu.activeBank()){
+                _previousLocationBank2 = _mouseLocation;
+            }
+            else{
+                _previousLocationBank1 = _mouseLocation;
+            }
+        }
         //update position
         if(_lastData.position.x > 127 ){
             _mouseLocation.x -= (256 - _lastData.position.x );
@@ -176,7 +268,9 @@ void VGAMouse::onTick()
         if(onMouseMove != nullptr)
             onMouseMove(_lastData.position.x, _lastData.position.y);
     }
-    _pendingMove = pendingMove;
+    _pendingMoveBank1 = pendingMove;
+    _pendingMoveBank2 = pendingMove;
+    
     _pendingEvent = pendingEvent;
 }
 
@@ -184,27 +278,77 @@ void VGAMouse::update()
 {
     if(_pointer == pointerNone) return;
     if(!_initializedPs2 && !_initializedUsb) return;
-    if(_pendingEvent || _pendingMove || _pendingRequestRedraw){
+    auto activeBank = gpu.activeBank();
+    auto pendingMove = activeBank ? _pendingMoveBank2 : _pendingMoveBank1;
+    if(_pendingEvent || pendingMove || _pendingRequestRedraw){
+        //Serial.print("Gpu has "); Serial.print(gpu.Get2DObjects()->size()); Serial.print(" objects on bank "); Serial.println(gpu.activeBank());
         //write out the old
-        if(mouseBuffer != nullptr){
-            _mouseAreaObject->shape->vertecies[0].x = _mouseLocation.x;
-            _mouseAreaObject->shape->vertecies[0].y = _mouseLocation.y;
-            _mouseAreaObject->drawnOnMem1 = false;
+        //auto _mouseAreaObject = activeBank ? _mouseAreaObjectBank2 : _mouseAreaObjectBank1;
+        // Serial.print("Pending Event: "); Serial.println(_pendingEvent);
+        // Serial.print("Pending Move: "); Serial.print(pendingMove); Serial.print(" Bank 1: "); Serial.print(_pendingMoveBank1); Serial.print(" Bank 2: "); Serial.println(_pendingMoveBank2);
+        // Serial.print("Requested Redraw: "); Serial.println(_pendingRequestRedraw);
+        
+        auto objBounds = _mouseAreaObject->getBounds();
+        int bufferOffset = activeBank * objBounds.height() * objBounds.width() * 2;
+        auto preLocation = activeBank ? _previousLocationBank2 : _previousLocationBank1;
+        if(activeBank ? _mouseAreaObject->drawnOnMem1 : _mouseAreaObject->drawnOnMem2){
+            //write back if bank data should be there
+            #ifdef DEBUG_GPU
+            Serial.print("Restoring surfrace from Mouse buffer on bank ");Serial.print(activeBank); 
+            Serial.print(" at "); Serial.print(_mouseAreaObject->shape->vertecies[0].x);
+            Serial.print(", "); Serial.println(_mouseAreaObject->shape->vertecies[0].y);
+            #endif
+            graphics.drawBuffer(
+                preLocation.x, 
+                preLocation.y, 
+                objBounds.width(),
+                objBounds.height(), 
+                _mouseAreaObject->texture->colors + bufferOffset
+            );
+        }
+        
+        if(activeBank){
             _mouseAreaObject->drawnOnMem2 = false;
-            //graphics.drawBuffer(_previousLocation.x, _previousLocation.y, _zoom, _zoom, mouseBuffer, btVertical);           
-        } else if(mouseBuffer == nullptr){         
-            mouseBuffer = new uint8_t[_zoom*_zoom];        
+            _pendingMoveBank2 = false;
+        }
+        else{
+            _mouseAreaObject->drawnOnMem1 = false;
+            _pendingMoveBank2 = false;
         }
 
-        if(_pendingMove)_previousLocation = _mouseLocation; //if we moved, update location
-        //read in buffer
-        //graphics.readBuffer(_mouseLocation, _zoom, _zoom, mouseBuffer, btVertical);
+        //gpu.ClearMouseObject( _mouseAreaObject);            
+        //if(!_pendingMoveBank1 && !_pendingMoveBank2){
+        _mouseAreaObject->shape->move(_mouseLocation.x, _mouseLocation.y);
+        //}
+        // _mouseAreaObject->invalidate(); //doesn't work
 
+        if(pendingMove){
+            if(activeBank)
+                _previousLocationBank2 = _mouseLocation;
+            else
+                _previousLocationBank1 = _mouseLocation; //if we moved, update location
+        }
+       
         //draw cursor
         drawCursor(_mouseLocation.x, _mouseLocation.y, _zoom, _zoom);
-        _pendingEvent = false;
-        _pendingMove = false;
+        _pendingEvent = false;        
         _pendingRequestRedraw = false;
+        graphics.setReady();
     }
     
+}
+
+bool VGAMouse::tryInitializeMouse(uint8_t clk, uint8_t data)
+{
+    _mouse = new PS2Mouse(clk, data);
+    
+    if(_mouse->begin()) {
+        _mouseReadTimer = new DueTimer(Timer.getAvailable());
+        _mouseReadTimer->attachInterrupt(vgaMouseInputEventHandler);
+        _mouseReadTimer->start(_readInterval * 1000);
+        //_initializedPs2 = true;
+        return true;
+    } else{
+        return false;
+    }
 }

@@ -5,10 +5,6 @@
 #define isascii(c)  ((c & ~0x7F) == 0)
 #define BUFFER_STRIDE 32
 
-// #define DEBUG
-// #define VERIFY
-
-
 /* workflow with double buffer
 
 1. make sure ready_set has been cleared. exit if not.

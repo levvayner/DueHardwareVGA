@@ -42,14 +42,14 @@ GPU::GPU(RenderMode mode = RenderMode::rmDirect)
     _renderMode = mode;   
 }
 
-void GPU::begin()
+void GPU::begin(uint16_t textBufferWidth, uint16_t textBufferHeight)
 {
     _renderCanvas.shapeList = new ShapeList<GraphicsObject2D>();
     _mouseCanvas.shapeList = new ShapeList<GraphicsObject2D>();
-    Serial.println("** Creating text buffer. Memory Before:  ");
-    PrintRam(Serial);
-    _textBuffer = *new TextBuffer(graphics.settings.screenWidth/graphics.settings.charWidth ,graphics.settings.screenHeight/graphics.settings.charHeight);
-    Serial.print("Memory after:  "); PrintRam(Serial);
+    //Serial.println("** Creating text buffer. Memory Before:  ");
+    //PrintRam(Serial);
+    _textBuffer = *new TextBuffer(textBufferWidth == 0 ? graphics.settings.screenWidth/graphics.settings.charWidth : textBufferWidth, textBufferHeight == 0 ? graphics.settings.screenHeight/graphics.settings.charHeight : textBufferHeight);
+    //Serial.print("Memory after:  "); PrintRam(Serial);
     
     graphics.begin(graphics.settings.screenWidth, graphics.settings.screenHeight, graphics.settings.foregroundColor);
     
@@ -148,8 +148,9 @@ void GPU::Render()
     //     }
     // }
     
-    if(modified)
+    if(modified || _renderRequested)
         graphics.setReady();
+    _renderRequested = false;
     //Serial.print("Rendering frame: "); Serial.print(millis() - startTime); Serial.println(" ms");
 }
 

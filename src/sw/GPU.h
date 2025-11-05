@@ -18,7 +18,7 @@ class GPU
 {
     public:
         GPU(RenderMode mode);
-        void begin();
+        void begin(uint16_t textBufferWidth = 0,  uint16_t textBufferHeight = 0);
         void end();
 
         void Render();
@@ -76,8 +76,14 @@ class GPU
         void SetMouseCanvas(ShapeList<GraphicsObject2D>* mouseCursor){
             this->_mouseCanvas.shapeList = mouseCursor;
         }
-        //void ClearMouseObject(GraphicsObject2D *obj);
-        //void DrawMouseObject(GraphicsObject2D * obj);
+        inline bool RequestRender(){
+            if(graphics.isWaiting())
+                return false;
+
+            
+            _renderRequested = true;
+            return true;
+        }
         
 
     protected:
@@ -93,6 +99,7 @@ class GPU
         Graphics2D _mouseCanvas;
         bool _isBank1Initialized = false;
         bool _isBank2Initialized = false;
+        bool _renderRequested = false; // external components can ask gpu to force bank swap
 
 
         unsigned long previousMillisStatePrint;

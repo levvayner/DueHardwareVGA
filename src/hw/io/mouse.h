@@ -96,7 +96,7 @@ class VGAMouse{
         setPosition(pos.x,pos.y);
     } 
     virtual inline MousePointer getPointer(){ return _pointer;}
-    virtual inline void setPointer(MousePointer pointer){ _pointer = pointer;}
+    virtual inline void setPointer(MousePointer pointer){ _pointer = pointer; _pendingRequestRedraw = true;}
 
     virtual inline void RequestRedraw(){
         _pendingRequestRedraw = true;
@@ -130,6 +130,7 @@ class VGAMouse{
 
     //uint8_t *mouseBuffer = nullptr;
     uint8_t _mouseCursorBuffer[64];
+    uint8_t _cursorColor = 0xFF;
     MousePointer _pointer = pointerFat;
     uint8_t _pointers[4][8] = {
         {0x80, 0xE0, 0xF8, 0xFE, 0xF8, 0x1C, 0x0E, 0x06}, //fat

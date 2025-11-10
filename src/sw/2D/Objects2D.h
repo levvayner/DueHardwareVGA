@@ -22,11 +22,11 @@ struct Point2D{
 struct Shape2D {
     public:
     uint8_t numberOfVerticies;
-    Point2D* vertecies;
+    Point2D* vertices;
     FillStyle style = FillStyle::Outline; // e.g. 0 is outline, 1 is fill, 2 is vertical gradient...
     //TODO: dynamically find shape like dynamic_cast
     Shape shape;
-    virtual ~Shape2D() { delete[] vertecies; }  // delete[] (matches new[])
+    virtual ~Shape2D() { delete[] vertices; }  // delete[] (matches new[])
     
     virtual bool operator==(Shape2D& other){
         return numberOfVerticies == other.numberOfVerticies &&
@@ -34,21 +34,46 @@ struct Shape2D {
         // TODO: iterate and compare
     }
 
-    void move(int16_t x, int16_t y){
-        //get move distance based on first verticie
-        auto moveX = x - vertecies[0].x;
-        auto moveY = y - vertecies[0].y;
+    void move_to(int16_t x, int16_t y){
+        move_by(x - vertices[0].x, y - vertices[0].y);       
+    }
+
+    void move_by(int16_t deltaX, int16_t deltaY){
         // Serial.print("Updating "); Serial.print(numberOfVerticies); Serial.println(" verticies");
-        // Serial.print("Moving "); Serial.print(moveX); Serial.print(", "); Serial.println(moveY);
+        // Serial.print("Moving "); Serial.print(deltaX); Serial.print(", "); Serial.print(deltaY);
+        // Serial.print(" to "); Serial.print(vertices[0].x + deltaX); Serial.print(", "); Serial.println(vertices[0].y + deltaY);
+        
         for(int idx=0; idx < numberOfVerticies;idx++){
-            vertecies[idx].x += moveX;
-            vertecies[idx].y += moveY;
+            vertices[idx].x += deltaX;
+            vertices[idx].y += deltaY;
         }
+        _area = 0; //reset
     }
 
     void setFillStyle(FillStyle style){
         this->style = style;
     }
+
+    float area(){
+        if(_area != 0) return _area;
+        float area = 0.0;
+        for(int idx = 0; idx < numberOfVerticies; idx++){
+            auto nextIdx = (idx + 1) % numberOfVerticies;
+            
+            //shoelace formula
+            area += (float)vertices[idx].x * (float)vertices[nextIdx].y;
+            area -=  (float)vertices[idx].y * (float)vertices[nextIdx].x;
+        }
+        if(area < 0) area *= -1;
+        if(area == 0) return area;
+        area = (area) / 2;
+        //Serial.print("Got area: "); Serial.println(area);
+        _area = area;
+        return area;
+    }
+
+    private: 
+    int16_t _area = 0;
 };
 
 struct Circle2D : public Shape2D{
@@ -57,10 +82,10 @@ struct Circle2D : public Shape2D{
     Circle2D(int16_t x, int16_t y, uint16_t radius, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 1;
         shape = Circle;
-        vertecies = new Point2D[1]; 
-        vertecies[0] = Point2D(x, y);
+        vertices = new Point2D[1]; 
+        vertices[0] = Point2D(x, y);
         this->style = style;
-        //vertecies.push_back(Point2D(x, y));
+        //vertices.push_back(Point2D(x, y));
         this->radius = radius;
     }
 };
@@ -73,8 +98,8 @@ struct Oval2D : public Shape2D{
         numberOfVerticies = 1;
         shape = Oval;
         this->style = style;        
-        vertecies = new Point2D[1]; 
-        vertecies[0] = Point2D(x, y);
+        vertices = new Point2D[1]; 
+        vertices[0] = Point2D(x, y);
         this->radiusX = radiusX;
         this->radiusY = radiusY;
     }
@@ -89,8 +114,8 @@ struct Arc2D : public Shape2D{
         this->numberOfVerticies = 1;
         shape = Arc;
         this->style = style;
-        vertecies = new Point2D[2]; 
-        vertecies[0] = Point2D(x, y);
+        vertices = new Point2D[2]; 
+        vertices[0] = Point2D(x, y);
         this->radius = radius;
         this->startDeg = startDeg;
         this->endDeg = endDeg; 
@@ -100,14 +125,14 @@ struct Arc2D : public Shape2D{
 
 struct Line2D : public Shape2D{
     public:
-    Point2D p1() {return vertecies[0];}
-    Point2D p2() {return vertecies[1];}
+    Point2D p1() {return vertices[0];}
+    Point2D p2() {return vertices[1];}
     Line2D(int16_t x1, int16_t y1, int16_t x2, int16_t y2){
         numberOfVerticies = 2;
         shape = Line;
-        vertecies = new Point2D[2];
-        vertecies[0] = Point2D(x1, y1);
-        vertecies[1] = Point2D(x2, y2);        
+        vertices = new Point2D[2];
+        vertices[0] = Point2D(x1, y1);
+        vertices[1] = Point2D(x2, y2);        
     }
 };
 
@@ -144,65 +169,92 @@ struct TrinagleLegDrawObject : public TriangleLeg{
 };
 struct Triangle2D: public Shape2D{  
     public:
-    Point2D p1() {return vertecies[0];}
-    Point2D p2() {return vertecies[1];}
-    Point2D p3() {return vertecies[2];}
+    Point2D p1() {return vertices[0];}
+    Point2D p2() {return vertices[1];}
+    Point2D p3() {return vertices[2];}
     Triangle2D(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 3;
         shape = Triangle;
         this->style = style;
-        vertecies = new Point2D[3]; 
-        vertecies[0] = Point2D(x1, y1);
-        vertecies[1] = Point2D(x2, y2);
-        vertecies[2] = Point2D(x3, y3);
+        vertices = new Point2D[3]; 
+        vertices[0] = Point2D(x1, y1);
+        vertices[1] = Point2D(x2, y2);
+        vertices[2] = Point2D(x3, y3);
     }
 };
 
 struct Rectangle2D : public Shape2D{
     public:
-    inline int16_t x1() {return vertecies[0].x;};
-    inline int16_t x2() {return vertecies[1].x;};
-    inline int16_t y1() {return vertecies[0].y;};
-    inline int16_t y2() {return vertecies[1].y;};
-    inline int16_t width() {return vertecies[1].x - vertecies[0].x;};
-    inline int16_t height() {return vertecies[1].y - vertecies[0].y;};
+    inline int16_t x1() {return vertices[0].x;};
+    inline int16_t x2() {return vertices[1].x;};
+    inline int16_t y1() {return vertices[0].y;};
+    inline int16_t y2() {return vertices[1].y;};
+    inline int16_t width() {return vertices[1].x - vertices[0].x;};
+    inline int16_t height() {return vertices[1].y - vertices[0].y;};
 
-    // int16_t width(){ return x2() > vertecies[1].x ? vertecies[1].x - vertecies[0].x : vertecies[0].x - vertecies[1].x; } // abs(x2 - x1);}
-    // int16_t height(){ return vertecies[1].y > vertecies[0].y ? vertecies[1].y - vertecies[0].y: vertecies[0].y - vertecies[1].y; } // abs(y2 - y1);}
+    // int16_t width(){ return x2() > vertices[1].x ? vertices[1].x - vertices[0].x : vertices[0].x - vertices[1].x; } // abs(x2 - x1);}
+    // int16_t height(){ return vertices[1].y > vertices[0].y ? vertices[1].y - vertices[0].y: vertices[0].y - vertices[1].y; } // abs(y2 - y1);}
     int32_t size() { return width() * height();}
 
-    Rectangle2D(Point2D p1, Point2D p2, FillStyle style = FillStyle::Outline){
+    Rectangle2D(Point2D topLeft, Point2D bottomRight, FillStyle style = FillStyle::Outline){
+        numberOfVerticies = 4;
+        shape = Rectangle;
+        this->style = style;
+        vertices = new Point2D[4];
+        vertices[0] = Point2D(topLeft.x, topLeft.y);
+        vertices[1] = Point2D(bottomRight.x, topLeft.y);        
+        vertices[2] = Point2D(bottomRight.x, bottomRight.y);
+        vertices[3] = Point2D(topLeft.x, bottomRight.y);
+        
+    }
+    Rectangle2D(Point2D topLeft, int16_t width, int16_t height, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 2;
         shape = Rectangle;
         this->style = style;
-        vertecies = new Point2D[2];
-        vertecies[0] = p1;
-        vertecies[1] = p2;        
+        vertices = new Point2D[4];
+        vertices[0] = Point2D(topLeft.x, topLeft.y);
+        vertices[1] = Point2D(topLeft.x + width, topLeft.y);        
+        vertices[2] = Point2D(topLeft.x + width, topLeft.y + height);
+        vertices[3] = Point2D(topLeft.x,  topLeft.y + height);       
     }
     Rectangle2D( int16_t x1, int16_t y1, int16_t x2, int16_t y2, FillStyle style = FillStyle::Outline){
         numberOfVerticies = 2;
         shape = Rectangle;
         this->style = style;
-        vertecies = new Point2D[2];
-        if(x1 < x2){
-            vertecies[0] = Point2D(x1,y1);
-            vertecies[1] = Point2D(x2,y2);                
-        } else{
-            vertecies[1] = Point2D(x1,y1);
-            vertecies[2] = Point2D(x2,y2);                
-        
-        }
+        vertices = new Point2D[4];
+        vertices[0] = Point2D(x1, y1);
+        vertices[1] = Point2D(x2, y1);        
+        vertices[2] = Point2D(x2, y2);
+        vertices[3] = Point2D(x1, y2);        
+    }
+
+    bool contains(int16_t x, int16_t y){        
+        return x >= vertices[0].x && x<= vertices[1].x &&
+            y >= vertices[0].y && y<= vertices[2].y;
+    }
+    bool contains(Point2D point){
+        return contains(point.x, point.y);
+    }
+    bool contains(Rectangle2D bounds){
+        return  //if shape contains a point from another
+            contains(bounds.x1(),bounds.y1()) ||
+            contains(bounds.x1(),bounds.y2()) ||
+            contains(bounds.x2(),bounds.y1()) ||
+            contains(bounds.x2(),bounds.y2());
+    }
+    bool intersects(Rectangle2D bounds){
+        return contains(bounds) || bounds.contains(*this);        
     }
 };
 
 struct Polygon2D : public Shape2D{  
     public:
-    Polygon2D(Point2D* vertecies, uint8_t size, FillStyle style = FillStyle::Outline){
+    Polygon2D(Point2D* vertices, uint8_t size, FillStyle style = FillStyle::Outline){
         this->numberOfVerticies = size;
         shape = Polygon;
         this->style = style;
-        this->vertecies = new Point2D[size];
-        memcpy(this->vertecies, vertecies, size* sizeof(Point2D));
+        this->vertices = new Point2D[size];
+        memcpy(this->vertices, vertices, size* sizeof(Point2D));
     }
 };
 
@@ -265,4 +317,6 @@ struct Texture2D{
         colors = nullptr;
     }
 };
+
+#define Vector2D Point2D
 #endif

@@ -9,7 +9,6 @@ void setup(){
     Serial.begin(115200);
     Serial.println("Started Due Hardware VGA");
     graphics.begin();
-    graphics.clear();
 }
 
 
@@ -20,5 +19,6 @@ void loop(){
         lastUpdated = checkingTime;
         graphics.clear(0,0,200,10);
         graphics.drawText(1,1, lastUpdated);
+        graphics.setReady();
     }
 }

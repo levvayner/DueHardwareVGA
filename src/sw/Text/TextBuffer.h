@@ -91,7 +91,7 @@ class TextBuffer{
         colors = new uint8_t[width * height] {0};
         bgcolors = new uint8_t[width * height] {0};
         flags = new uint8_t[width * height] {0};
-        Serial.print("Initialized text buffer with"); Serial.print(width*height); Serial.print(" chars");
+        Serial.print("Initialized text buffer with "); Serial.print(width*height); Serial.println(" chars");
         Clear();
     }
 
@@ -134,6 +134,50 @@ class TextBuffer{
         text[y * width + x] = ' ';
         //SetIsTransparentBackground(y * width + x,false); //paint over console
         flags[y * width + x] &= 0xF0;
+    }
+    /// @brief Moves text back one character from specified position to first null terminator
+    /// @param x 
+    /// @param y 
+    void RemoveChar(uint16_t x, uint16_t y){
+        if(x >= width || y >= height) return;
+        //move remaining text back one
+        char buf[128];
+        int bytesToCopy = 128;
+        //scan for end
+        int bytesLeft = 0;
+        
+        for(int idx = y * width + x; idx < width * height; idx++){
+            if(text[idx] == 0) break;
+            bytesLeft++;
+            flags[idx] &= ~(0x3); //mark char to be redrawn
+        }
+        int lastIdx = y * width + x + bytesLeft - 1;
+
+        for(int idx = y * width + x; idx < bytesLeft + idx; idx += bytesToCopy)
+        {
+            bytesToCopy = bytesToCopy < bytesLeft ? bytesToCopy : bytesLeft;
+            if(bytesToCopy == 0) break;
+            Serial.print("Copying "); Serial.print(bytesToCopy); Serial.println(" bytes.");
+            //text
+            memcpy(buf,text + idx,bytesToCopy);
+            memcpy(text + idx - 1, buf,bytesToCopy);
+            //color
+            memcpy(buf,colors + idx,bytesToCopy);
+            memcpy(colors + idx - 1, buf,bytesToCopy);
+            //bgcolor
+            memcpy(buf,bgcolors + idx,bytesToCopy);
+            memcpy(bgcolors + idx - 1, buf,bytesToCopy);
+            //flags
+            memcpy(buf,flags + idx,bytesToCopy);
+            memcpy(flags + idx - 1, buf,bytesToCopy);
+
+            bytesLeft -= bytesToCopy;
+
+        }
+        
+        //clear last char
+        text[lastIdx] = 0;
+        flags[lastIdx] = 0;
     }
 
     void UpdateCharUnderline(uint16_t x, uint16_t y, bool underline){
@@ -218,9 +262,11 @@ class TextBuffer{
     void Clear(){
         if(text != nullptr)
             memset(text, 0, width * height * sizeof(char));
-        if(text != nullptr)
+        if(colors != nullptr)
             memset(colors, 0, width * height * sizeof(uint8_t));
-        if(text != nullptr)
+        if(bgcolors != nullptr)
+            memset(bgcolors, 0, width * height * sizeof(uint8_t));
+        if(flags != nullptr)
             memset(flags, 0, width * height * sizeof(uint8_t));
     }
 

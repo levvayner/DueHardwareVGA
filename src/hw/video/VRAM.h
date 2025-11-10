@@ -127,7 +127,9 @@ class VRAM : public SRAM{
 
     virtual bool fillOval(int centerX, int centerY, int width, int height, byte color = Color::WHITE, BusyType busyType = btInvalid);
     
-
+    virtual inline bool clear(Rectangle2D bounds){
+        clear(bounds.x1(),bounds.y2(), bounds.x2(),bounds.y2());
+    }
     virtual inline bool clear(int x1 = 0, int y1 = 0, int width = 0, int height = 0, BusyType busyType = btInvalid){
         if(width == 0) width = settings.screenWidth - x1 + 2;
         if(height == 0) height = settings.screenHeight - y1 + 2;

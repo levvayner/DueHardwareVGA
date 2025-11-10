@@ -39,7 +39,7 @@ void VRAM::begin(int width , int height, uint8_t textColor, uint8_t backgroundCo
 }
 void VRAM::end()
 {
-    detachInterrupt(PIN_BANK_SELECT);
+    //detachInterrupt(PIN_BANK_SELECT);
 }
 
 #ifdef DOUBLE_BUFFER

@@ -26,7 +26,7 @@ void setup(){
     auto height = 25;
     for(int vert = 0; vert < graphics.settings.screenHeight / height; vert++){
         for(int hor = 0; hor < graphics.settings.screenWidth / width; hor++){
-            auto obj = GraphicsObject2D(new Rectangle2D(hor * width,vert * height, ((hor + 1) * width) , ((vert + 1) * height),Fill),((vert * 4) +(hor*3))% 255 );
+            auto obj = Graphics2DObject(new Rectangle2D(hor * width,vert * height, ((hor + 1) * width) , ((vert + 1) * height),Fill),((vert * 4) +(hor*3))% 255 );
             _graphics.shapeList->push_back(std::move(obj));        
         }
     }
@@ -39,7 +39,6 @@ void setup(){
     gpu.Render();
 }
 
-unsigned long lastRendered = millis();
 void loop(){    
     if(_positionUpdated){
         _positionUpdated = false;
@@ -61,8 +60,6 @@ void loop(){
         
     } 
     mouse.update();
-    gpu.Render();
-    lastRendered = millis();
-    
+    gpu.Render();    
 }
 

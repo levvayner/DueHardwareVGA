@@ -12,32 +12,26 @@ void consoleProcessKey(uint8_t data){
     #ifdef DEBUG
     Serial.print("Received key 0x"); Serial.println(data, HEX);
     #endif
-    auto bounds = _myBox->getBounds();
     switch (data)
     {
         //TODO: add bounds checking
     case 0x41: //up arrow
     case PS2_KEY_UP_ARROW:                
-        //gpu.Invalidate(_myBox->getBounds());        
-        _myBox->move_by(0,-1 * speed);         
+        _myBox->move_by(0,-1 * speed); 
         //gpu.Invalidate();       
         break;
     case 0x42: //down arrow
     case PS2_KEY_DN_ARROW:        
-        gpu.Invalidate(&bounds);
-        _myBox->move_by(0,speed);        
+        _myBox->move_by(0,speed);
         //gpu.Invalidate();
         break;
     case 0x43: //right arrow     
     case PS2_KEY_R_ARROW:        
-        gpu.Invalidate(&bounds);
         _myBox->move_by(speed,0);
-        
         //gpu.Invalidate();
         break;
     case 0x44: //left arrow
     case PS2_KEY_L_ARROW:
-        gpu.Invalidate(&bounds);
         _myBox->move_by(-1 * speed,0);
         //gpu.Invalidate();
         break;    

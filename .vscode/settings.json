@@ -44,5 +44,6 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "cinttypes": "cpp"
-    }
+    },
+    "workbench.colorTheme": "Monokai"
 }

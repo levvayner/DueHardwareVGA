@@ -58,6 +58,47 @@ public:
         return *this;
     }
 
+    T& get(int index) {
+     
+
+       Node* current = head;
+        for (int x = 0; x < index; x++) {
+            if (current->next == NULL) {
+            //some sort of error handling for index out of bounds
+            } else {
+            current = current->next;
+            }
+        }
+        return current->value;
+    }
+
+    // Get element at a specific index
+    T& operator[](size_t index) {
+        if (index >= size) {
+            throw ("Index out of bounds");
+        }
+
+        Node* current = head;
+        for (size_t i = 0; i < index; ++i) {
+            current = current->next;
+        }
+        return current->value;
+    }
+
+    // Const version for read-only access
+    const T& operator[](size_t index) const {
+        if (index >= size) {
+            throw ("Index out of bounds");
+        }
+
+        Node* current = head;
+        for (size_t i = 0; i < index; ++i) {
+            current = current->next;
+        }
+        return current->data;
+    }
+
+
     bool empty() const noexcept { return head == nullptr; }
     size_type size() const noexcept { return count; }
 
@@ -76,20 +117,22 @@ public:
         ++count;
     }
 
-    void push_back(const T& v) {
+    T* push_back(const T& v) {
         Node* n = new Node(v);
         if (tail) tail->next = n;
         else head = n;
         tail = n;
         ++count;
+        return &n->value;
         //Serial.println("Added element to Shape List by copy");
     }
-    void push_back(T&& v) {
+    T* push_back(T&& v) {
         Node* n = new Node(_move(v));
         if (tail) tail->next = n;
         else head = n;
         tail = n;
         ++count;
+        return &n->value;
         //Serial.println("Added element to Shape List by move");
     }
 

@@ -44,16 +44,16 @@ GPU::GPU(RenderMode mode = RenderMode::rmDirect)
 
 void GPU::begin(uint16_t textBufferWidth, uint16_t textBufferHeight)
 {
-    _renderCanvas.shapeList = new ShapeList<GraphicsObject2D>();
-    _mouseCanvas.shapeList = new ShapeList<GraphicsObject2D>();
-    //Serial.println("** Creating text buffer. Memory Before:  ");
-    //PrintRam(Serial);
-    _textBuffer = *new TextBuffer(textBufferWidth == 0 ? graphics.settings.screenWidth/graphics.settings.charWidth : textBufferWidth, textBufferHeight == 0 ? graphics.settings.screenHeight/graphics.settings.charHeight : textBufferHeight);
-    //Serial.print("Memory after:  "); PrintRam(Serial);
-    
+    _renderCanvas2D.shapeList = new ShapeList<Graphics2DObject>();
+    _mouseCanvas.shapeList = new ShapeList<Graphics2DObject>();
+    _fpsCanvas.shapeList =  new ShapeList<Graphics2DObject>();
+    _renderCanvas3D.shapeList = new ShapeList<Graphics3DObject>();
+    char buf[36];
+    sprintf(buf,"Starting display with %d x %d resolution\n", graphics.settings.screenWidth, graphics.settings.screenHeight);
+    Serial.println(buf);
     graphics.begin(graphics.settings.screenWidth, graphics.settings.screenHeight, graphics.settings.foregroundColor);
+    _textBuffer = *new TextBuffer(textBufferWidth == 0 ? graphics.settings.screenWidth/graphics.settings.charWidth : textBufferWidth, textBufferHeight == 0 ? graphics.settings.screenHeight/graphics.settings.charHeight : textBufferHeight);
     
-    //graphics.settings.backgroundColor = 0x00;
     attachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT), clearReadySet, CHANGE);
 }
 
@@ -63,15 +63,22 @@ void GPU::end()
     detachInterrupt(digitalPinToInterrupt(PIN_BANK_SELECT));
 }
 
-void GPU::Render()
+bool GPU::Render()
 {
     bool modified = false;
     unsigned long startTime = millis();
-    while(graphics.isWaiting() && (millis() - startTime < 20));
+    while(graphics.isWaiting() && (millis() - startTime < 40));
+    if(graphics.isWaiting()) {
+        graphics.setReady(true);
+        Serial.print("Skipping frame");
+        return false;
+    }
+    if(_showFPS)
+        addFpsEntry();
     //_activeBank = digitalRead(PIN_BANK_SELECT);
     #ifdef DEBUG_GPU
     Serial.print("Rendering to bank "); Serial.println(__activeBank);
-    Serial.print("Objects to render: "); Serial.println(_renderCanvas.shapeList->size());
+    Serial.print("Objects to render: "); Serial.println(_renderCanvas2D.shapeList->size());
     #endif
     if(__activeBank == 0 && !_isBank1Initialized){
         
@@ -89,12 +96,94 @@ void GPU::Render()
         #endif
     }
 
-    if(_renderCanvas.shapeList != nullptr && _renderCanvas.shapeList->size() > 0){
+    if(_renderCanvas2D.shapeList != nullptr && _renderCanvas2D.shapeList->size() > 0){
+        
         #ifdef DEBUG_GPU
-        Serial.print("Rendering ");Serial.print(_renderCanvas.shapeList->size() ); Serial.println(" graphics objects");
-        Serial.print("Empty flag: "); Serial.println(_renderCanvas.shapeList->empty() ? "Empty" : "Contains Data");
+            int rendered2DCount = 0;
         #endif
-        for(auto &obj : *_renderCanvas.shapeList){
+        for(auto &obj : *_renderCanvas2D.shapeList){
+            if(__activeBank == 0 && !obj.drawnOnMem1){
+                Draw2DObject(&obj);
+                obj.drawnOnMem1 = true;
+                modified = true;
+                #ifdef DEBUG_GPU
+                rendered2DCount++;
+                #endif
+            }
+            else if(__activeBank == 1 && !obj.drawnOnMem2){
+                Draw2DObject(&obj);
+                obj.drawnOnMem2 = true;
+                modified = true;
+                #ifdef DEBUG_GPU
+                rendered2DCount++;
+                #endif
+            } 
+        }
+        #ifdef DEBUG_GPU
+        if(rendered2DCount > 0){
+            Serial.print("Rendered ");Serial.print(rendered2DCount ); Serial.println(" 2D graphics objects");        
+        }
+        #endif
+    } else{
+        #ifdef DEBUG_GPU
+        Serial.println("Not rendering 2D surface. No 2D objects found!");
+        #endif
+    }
+
+    if(_renderCanvas3D.shapeList != nullptr && _renderCanvas3D.shapeList->size() > 0){
+        
+        #ifdef DEBUG_GPU
+            int rendered3DCount = 0;
+        #endif
+        for(auto &obj : *_renderCanvas3D.shapeList){
+            if(__activeBank == 0 && !obj.drawnOnMem1){
+                Draw3DObject(&obj);
+                obj.drawnOnMem1 = true;
+                modified = true;
+                #ifdef DEBUG_GPU
+                rendered3DCount++;
+                #endif
+            }
+            else if(__activeBank == 1 && !obj.drawnOnMem2){
+                Draw3DObject(&obj);
+                obj.drawnOnMem2 = true;
+                modified = true;
+                #ifdef DEBUG_GPU
+                rendered3DCount++;
+                #endif
+            } 
+        }
+        #ifdef DEBUG_GPU
+        if(rendered3DCount > 0){
+            Serial.print("Rendered ");Serial.print(rendered3DCount ); Serial.println(" 3D graphics objects");        
+        }
+        #endif
+    } else{
+        #ifdef DEBUG_GPU
+        Serial.println("Not rendering 3D surface. No 3D objects found!");
+        #endif
+    }
+
+    //if(_renderMode == RenderMode::rmText){
+        // in text mode, just clear the screen
+        //graphics.clear();
+        modified |= DrawTextBuffer();
+    //}
+    // else if(_renderMode == RenderMode::rmDirect){
+    //     // in direct mode, draw all objects every frame
+    //     for(auto &obj : *_renderCanvas2D.shapeList){
+    //         Draw2DObject(&obj);
+    //     }
+    // }
+        
+   //}
+
+    //fps canvas
+    if(_fpsCanvas.shapeList != nullptr && _fpsCanvas.shapeList->size() > 0){
+        #ifdef DEBUG_GPU
+        Serial.print("Rendering fps ");Serial.print(_fpsCanvas.shapeList->size() ); Serial.println(" graphics objects");
+        #endif
+        for(auto &obj : *_fpsCanvas.shapeList){
             if(__activeBank == 0 && !obj.drawnOnMem1){
                 Draw2DObject(&obj);
                 obj.drawnOnMem1 = true;
@@ -104,65 +193,35 @@ void GPU::Render()
                 Draw2DObject(&obj);
                 obj.drawnOnMem2 = true;
                 modified = true;
-            } 
+            }
         }
     }
-
-    if(_renderMode == RenderMode::rmText){
-        // in text mode, just clear the screen
-        //graphics.clear();
-        modified |= DrawTextBuffer();
-    }
-    // else if(_renderMode == RenderMode::rmDirect){
-    //     // in direct mode, draw all objects every frame
-    //     for(auto &obj : *_renderCanvas.shapeList){
-    //         Draw2DObject(&obj);
-    //     }
-    // }
-    //else if(_renderMode == RenderMode::rmBuffered){
-        // in buffered mode, only draw objects that haven't been drawn to the active bank yet
-        
-   //}
-
-    //mouse canvas    
-    // if(_mouseCanvas.shapeList != nullptr && _mouseCanvas.shapeList->size() > 0){
-    //     #ifdef DEBUG_GPU
-    //     Serial.print("Rendering mouse ");Serial.print(_mouseCanvas.shapeList->size() ); Serial.println(" graphics objects");
-    //     Serial.print("Empty flag: "); Serial.println(_mouseCanvas.shapeList->empty() ? "Empty" : "Contains Data");
-    //     #endif
-    //     for(auto &obj : *_mouseCanvas.shapeList){
-    //         if(__activeBank == 0 && !obj.drawnOnMem1){
-    //             // Serial.print("DRAWING MOUSE  ON BANK 1"); 
-    //             DrawMouseObject(&obj);
-    //             //Draw2DObject(&obj);
-    //             obj.drawnOnMem1 = true;
-    //             modified = true;
-    //         }
-    //         else if(__activeBank == 1 && !obj.drawnOnMem2){
-    //             // Serial.print("DRAWING MOUSE  ON BANK 2"); 
-    //             DrawMouseObject(&obj);
-    //             //Draw2DObject(&obj);
-    //             obj.drawnOnMem2 = true;
-    //             modified = true;
-    //         }
-    //     }
-    // }
-    
-    if(modified || _renderRequested)
+    auto rendered = modified || _renderRequested;
+    if(rendered)
         graphics.setReady();
     _renderRequested = false;
     //Serial.print("Rendering frame: "); Serial.print(millis() - startTime); Serial.println(" ms");
+    return rendered;
 }
 
 void GPU::Invalidate()
 {
     _isBank1Initialized = false;
     _isBank2Initialized = false;
-    for(auto &obj : *_renderCanvas.shapeList){
-        obj.drawnOnMem1 = false;
-        obj.drawnOnMem2 = false;
+    for(auto &obj : *_renderCanvas2D.shapeList){
+        obj.invalidate();
+    }
+     for(auto &obj : *_renderCanvas3D.shapeList){
+        obj.invalidate();
     }
     _textBuffer.Invalidate();
+}
+
+void GPU::Invalidate(Rectangle2D * bounds)
+{
+    graphics.clear(*bounds);
+    InvalidateObjects(bounds);
+    //TODO: invaldate text buffer part
 }
 
 bool GPU::activeBank()
@@ -170,9 +229,9 @@ bool GPU::activeBank()
     return __activeBank;
 }
 
-void GPU::Add2DObject(const GraphicsObject2D &obj)
+Graphics2DObject * GPU::Add2DObject(const Graphics2DObject &obj)
 {
-    _renderCanvas.shapeList->push_back(std::move(obj));
+    return _renderCanvas2D.shapeList->push_back(std::move(obj));
 }
 
 bool GPU::DrawTextBuffer()
@@ -226,88 +285,127 @@ bool GPU::DrawTextBuffer()
     return modified;
 }
 
-// void GPU::ClearMouseObject(GraphicsObject2D *obj)
-// {
-//     Serial.print("Clearing Mouse object on bank ");Serial.print(__activeBank); Serial.print(" at "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
-
-//     auto objBounds = obj->getBounds();
-//     int bufferOffset = __activeBank * objBounds.height() * objBounds.width() * 2;
-//     if(__activeBank ? obj->drawnOnMem1 : obj->drawnOnMem2){
-//         //write back if bank data should be there
-//         graphics.drawBuffer(
-//             objBounds.x1(), 
-//             objBounds.y1(), 
-//             objBounds.width(),
-//             objBounds.height(), 
-//             obj->texture->colors + bufferOffset
-//         );
-//     }
-    
-//     if(__activeBank)
-//         obj->drawnOnMem2 = false;
-//     else
-//         obj->drawnOnMem1 = false;
-    
-// }
-
-// void GPU::DrawMouseObject(GraphicsObject2D *obj)
-// {
-
-//      Serial.print("Drawing Mouse object on bank ");Serial.print(__activeBank); Serial.print(" at ");  Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.print(obj->shape->vertecies[0].y);
-
-//     // if(obj->shape->numberOfVerticies > 1){
-//     //     Serial.print("\t "); Serial.print(obj->shape->vertecies[1].x); Serial.print(", "); Serial.print(obj->shape->vertecies[1].y);
-//     // }
-//     Serial.println();
-
-//     // buffer has 4 sections:
-//     // 1. bank 1 before storage
-//     // 2. bank 1 mouse cursor storage
-//     // 3. bank 2 before storage
-//     // 4. bank2 after storage
-//     int16_t x1 = obj->shape->vertecies[0].x;
-//     int16_t x2 = obj->shape->vertecies[1].x;
-//     int16_t y1 = obj->shape->vertecies[0].y;
-//     int16_t y2 = obj->shape->vertecies[1].y;
-    
-//     auto width = x2 - x1 ;
-//     auto height = y2 - y1;
-//     // Serial.print("Bounds: "); Serial.print(objBounds.x1());Serial.print(", "); Serial.print(objBounds.y1());    
-//     // Serial.print(" - W x H: "); Serial.print(objBounds.x2() - objBounds.x1());Serial.print(", "); Serial.print(objBounds.y2() - objBounds.y1());
-
-//     // Serial.print(" Verticies: "); Serial.print(x1);Serial.print(", "); Serial.print(y1);
-//     // Serial.print(" - W x H: "); Serial.print(x2 - x1);Serial.print(", "); Serial.println(y2 - y1);
-//     auto objBounds = obj->getBounds();
-//     int bufferOldOffset = __activeBank * height * width * 2;
-//     int bufferCursorOffset = (gpu.activeBank() * height * width * 2) + (height * width);
-        
-//     // Serial.print("Buffer old offset: "); Serial.println(bufferOldOffset);
-//     // Serial.print("Buffer mouse offset: "); Serial.println(bufferCursorOffset);
-
-//     //store to old
-//     graphics.readBuffer(objBounds.x1(),objBounds.y1(),width,height,obj->texture->colors + bufferOldOffset);
-//     //draw new
-//     graphics.drawBuffer(objBounds.x1(),objBounds.y1(),width,height,obj->texture->colors + bufferCursorOffset);
-    
-    
-//     if(__activeBank)
-//         obj->drawnOnMem2 = true;
-//     else
-//         obj->drawnOnMem1 = true;
-// }
-
-void GPU::Draw2DObject(GraphicsObject2D* obj)
+int GPU::InvalidateObjects(Point2D location)
 {
-    // Serial.print("Drawing 2D object at "); Serial.print(obj->shape->vertecies[0].x); Serial.print(", "); Serial.println(obj->shape->vertecies[0].y);
+    return InvalidateObjects(location.x, location.y);
+}
 
-    // if(obj->shape->numberOfVerticies > 1){
-    //     Serial.print("\tv2 "); Serial.print(obj->shape->vertecies[1].x); Serial.print(", "); Serial.println(obj->shape->vertecies[1].y);
+int GPU::InvalidateObjects(Rectangle2D * bounds)
+{
+    
+    if(_renderCanvas2D.shapeList != nullptr && _renderCanvas2D.shapeList->size() > 0){
+        for(auto & obj : *_renderCanvas2D.shapeList){
+            auto intersects = bounds->intersects(obj.getBounds());
+            if(intersects){
+                //Serial.println("Invalidating bounds");
+                obj.invalidate();
+            }
+        }
+    }
+    // if(_renderCanvas3D.shapeList != nullptr && _renderCanvas3D.shapeList->size() > 0){
+    //     for(auto & obj : *_renderCanvas3D.shapeList){
+    //         auto intersects = bounds->intersects(obj.getBounds());
+    //         if(intersects){
+    //             //Serial.println("Invalidating bounds");
+    //             obj.invalidate();
+    //         }
+    //     }
     // }
+    if(_mouseCanvas.shapeList != nullptr && _mouseCanvas.shapeList->size() > 0){
+        for(auto & obj : *_renderCanvas2D.shapeList){
+            auto intersects = bounds->intersects(obj.getBounds());
+            if(intersects){
+                obj.invalidate();
+            }
+        }
+    }
+    if(_fpsCanvas.shapeList != nullptr && _fpsCanvas.shapeList->size() > 0){
+        for(auto & obj : *_fpsCanvas.shapeList){
+            auto intersects = bounds->intersects(obj.getBounds());
+            if(intersects){
+                obj.invalidate();
+            }
+        }
+    }
+    return 0;
+}
 
-    // Serial.print("Shape type: "); Serial.print(ShapeName[ obj->shape->shape]);
-    // Serial.print(" with color:");
-    // Serial.println(obj->texture->colors[0]);
- 
+int GPU::InvalidateObjects(int16_t x, int16_t y)
+{    
+    for(auto & obj : *_renderCanvas2D.shapeList){
+        if(obj.getBounds().contains(x,y))
+        obj.invalidate();
+    }
+    for(auto & obj : *_mouseCanvas.shapeList){
+        if(obj.getBounds().contains(x,y))
+        obj.invalidate();
+        
+    }
+    for(auto & obj : *_fpsCanvas.shapeList){
+        if(obj.getBounds().contains(x,y))
+        obj.invalidate();        
+    }
+    return 0;
+}
+/// @brief Invalidates objects that contain the point specified
+/// @param x 
+/// @param y 
+/// @param z 
+/// @return number of object invalidated
+int GPU::InvalidateObjects(int16_t x, int16_t y, int16_t z)
+{
+    for(auto & obj : *_renderCanvas3D.shapeList){
+        if(obj.getBounds().contains(x,y,z))
+        obj.invalidate();
+    }
+   
+    return 0;
+}
+
+unsigned long fpsTimes[2] = {0};
+uint16_t fpsFrameCounter = 0;
+double framesPerSecond = 0;
+double samples = 20; //average over this many frames
+void GPU::addFpsEntry()
+{
+
+    if(fpsFrameCounter == 0){
+        fpsTimes[0] = millis();
+    } else if(fpsFrameCounter == samples - 1){
+        fpsTimes[1] = millis();
+    }
+    fpsFrameCounter++;
+    if(fpsFrameCounter  == samples){
+        char buf[12];
+        //calculate and write out fps
+        //shortcut, just compare first and last
+        auto msPerFrame = ((double)(fpsTimes[1] - fpsTimes[0]) / (double)samples);
+        framesPerSecond = 1000.0 / msPerFrame ;
+        sprintf(buf,"FPS: %.2lf",framesPerSecond);
+        _fpsCounter->update_text(buf);
+        _fpsCounter->invalidate();
+        //clear and reset counter
+        memset(fpsTimes,0,sizeof(fpsTimes));
+        fpsFrameCounter = 0;
+        //update samples to have reading update about every second
+        samples = framesPerSecond;
+    }
+}
+void GPU::Draw2DObject(Graphics2DObject* obj)
+{
+    if(!Rectangle2D(0,0,graphics.settings.screenWidth, graphics.settings.screenHeight).intersects(obj->getBounds()))
+        return;
+    #if defined(DEBUG_GPU) && DEBUG_GPU > 0
+    Serial.print("Drawing 2D object at "); Serial.print(obj->shape->vertices[0].x); Serial.print(", "); Serial.println(obj->shape->vertices[0].y);
+
+    if(obj->shape->numberOfVerticies > 1){
+        Serial.print("\tv2 "); Serial.print(obj->shape->vertices[1].x); Serial.print(", "); Serial.println(obj->shape->vertices[1].y);
+    }
+
+    Serial.print("Shape type: "); Serial.print(ShapeName[ obj->shape->shape]);
+    Serial.print(" with color:");
+    Serial.println(obj->texture->colors[0]);
+    #endif
    
 
    uint8_t drawColor = obj->texture ? obj->texture->colors[0] : obj->color;
@@ -315,22 +413,22 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
     
 
     if(obj->shape->shape == Line){
-        graphics.drawLine(obj->shape->vertecies[0], obj->shape->vertecies[1], drawColor);
+        graphics.drawLine(obj->shape->vertices[0], obj->shape->vertices[1], drawColor);
     }
     else if(obj->shape->shape == Triangle){
         if(obj->shape->style == FillStyle::Outline)
             graphics.drawTriangle(
-                obj->shape->vertecies[0].x, obj->shape->vertecies[0].y ,
-                obj->shape->vertecies[1].x, obj->shape->vertecies[1].y,
-                obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,
+                obj->shape->vertices[0].x, obj->shape->vertices[0].y ,
+                obj->shape->vertices[1].x, obj->shape->vertices[1].y,
+                obj->shape->vertices[2].x,obj->shape->vertices[2].y,
                 drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill)
             graphics.fillTriangle(
-                obj->shape->vertecies[0].x, obj->shape->vertecies[0].y ,
-                obj->shape->vertecies[1].x, obj->shape->vertecies[1].y,
-                obj->shape->vertecies[2].x,obj->shape->vertecies[2].y,
+                obj->shape->vertices[0].x, obj->shape->vertices[0].y ,
+                obj->shape->vertices[1].x, obj->shape->vertices[1].y,
+                obj->shape->vertices[2].x,obj->shape->vertices[2].y,
                 drawColor
             );
     }
@@ -338,34 +436,34 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
        
         if(obj->shape->style == FillStyle::Outline){           
             graphics.drawRectangle(
-                obj->shape->vertecies[0],
-                obj->shape->vertecies[1],
+                obj->shape->vertices[0],
+                obj->shape->vertices[2],
                 drawColor
             );
         }
         else if(obj->shape->style == FillStyle::Fill)
             graphics.fillRectangle(
-                obj->shape->vertecies[0],
-                obj->shape->vertecies[1],
+                obj->shape->vertices[0],
+                obj->shape->vertices[2],
                 drawColor
             );
     }
 
     else if(obj->shape->shape == Circle){
         Circle2D* circle = static_cast<Circle2D*>(obj->shape);
-        //Serial.print("Drawing circle at ("); Serial.print(circle->vertecies[0].x);  Serial.print(", "); Serial.print(circle->vertecies[0].y); Serial.print(") with radius ");  Serial.println(circle->radius);
+        //Serial.print("Drawing circle at ("); Serial.print(circle->vertices[0].x);  Serial.print(", "); Serial.print(circle->vertices[0].y); Serial.print(") with radius ");  Serial.println(circle->radius);
         if(obj->shape->style == FillStyle::Outline)
             graphics.drawCircle(
-                circle->vertecies[0].x,
-                circle->vertecies[0].y,
+                circle->vertices[0].x,
+                circle->vertices[0].y,
                 circle->radius,
                 drawColor
             );
             
         else if(obj->shape->style == FillStyle::Fill)
             graphics.fillCircle(
-                circle->vertecies[0].x,
-                circle->vertecies[0].y,
+                circle->vertices[0].x,
+                circle->vertices[0].y,
                 circle->radius,
                 drawColor
             );
@@ -374,8 +472,8 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         Oval2D* oval = static_cast<Oval2D*>(obj->shape);
         if(obj->shape->style == FillStyle::Outline)
             graphics.drawOval(
-                oval->vertecies[0].x,
-                oval->vertecies[0].y,
+                oval->vertices[0].x,
+                oval->vertices[0].y,
                 oval->radiusX,
                 oval->radiusY,
                 drawColor
@@ -383,8 +481,8 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
             
         else if(obj->shape->style == FillStyle::Fill)
             graphics.fillOval(
-                oval->vertecies[0].x,
-                oval->vertecies[0].y,
+                oval->vertices[0].x,
+                oval->vertices[0].y,
                 oval->radiusX,
                 oval->radiusY,
                 drawColor
@@ -394,8 +492,8 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         Arc2D* arc = static_cast<Arc2D*>(obj->shape);
         if(obj->shape->style == FillStyle::Outline)
             graphics.drawArc(
-                arc->vertecies[0].x,
-                arc->vertecies[0].y,
+                arc->vertices[0].x,
+                arc->vertices[0].y,
                 arc->startDeg,
                 arc->endDeg,
                 arc->radius,
@@ -404,8 +502,8 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
             
         else if(obj->shape->style == FillStyle::Fill){
         //    graphics.fillArc(
-        //         arc->vertecies[0].x,
-        //         arc->vertecies[0].y,
+        //         arc->vertices[0].x,
+        //         arc->vertices[0].y,
         //         arc->startDeg,
         //         arc->endDeg,
         //         arc->radius,
@@ -419,8 +517,8 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
         // auto textWidth = strlen(obj->text) * graphics.settings.charWidth;
         uint16_t textHeight = 0, textWidth = 0;
         for(int i=0; i < obj->shape->numberOfVerticies; i++){
-            textWidth += obj->shape->vertecies[i].x;
-            textHeight += obj->shape->vertecies[i].y;
+            textWidth += obj->shape->vertices[i].x;
+            textHeight += obj->shape->vertices[i].y;
         }
         auto xpos = (textWidth / obj->shape->numberOfVerticies) - ((strlen(obj->text) * graphics.settings.charWidth) / 2);
         auto ypos = (textHeight / obj->shape->numberOfVerticies) - graphics.settings.charHeight / 2;
@@ -429,6 +527,155 @@ void GPU::Draw2DObject(GraphicsObject2D* obj)
     }
 
 }
+
+void GPU::Draw3DObject(Graphics3DObject* obj)
+{
+    if(!Rectangle2D(0,0,graphics.settings.screenWidth, graphics.settings.screenHeight).contains(obj->getProjectedBounds()))
+        return;
+    #if defined(DEBUG_GPU) && DEBUG_GPU > 0
+    
+    Serial.print("Drawing 3D object at "); Serial.print(obj->projected->vertices[0].x); Serial.print(", "); Serial.print(obj->projected->vertices[0].y);
+
+    if(obj->projected->numberOfVerticies > 1){
+        Serial.print(" - "); Serial.print(obj->projected->vertices[1].x); Serial.print(", "); Serial.println(obj->projected->vertices[1].y);
+    }
+
+    Serial.print("Shape type: "); Serial.print(ShapeName[ obj->projected->shape]);
+    Serial.print(" with color:");
+    Serial.print(obj->texture->colors[0]);
+    Serial.println();
+    #endif
+   
+
+   uint8_t drawColor = obj->texture ? obj->texture->colors[0] : obj->color;
+
+    
+
+    if(obj->projected->shape == Line){
+        graphics.drawLine(obj->projected->vertices[0], obj->projected->vertices[1], drawColor);
+    }
+    else if(obj->projected->shape == Triangle){
+        if(obj->projected->style == FillStyle::Outline)
+            for(int idx = 0; idx < obj->projected->numberOfVerticies; idx++){
+            auto nextIdx = (idx + 1) % obj->projected->numberOfVerticies;
+            graphics.drawLine(obj->projected->vertices[idx], obj->projected->vertices[nextIdx], obj->color);            
+        }
+            // graphics.drawTriangle(
+            //     obj->projected->vertices[0].x, obj->projected->vertices[0].y ,
+            //     obj->projected->vertices[1].x, obj->projected->vertices[1].y,
+            //     obj->projected->vertices[2].x,obj->projected->vertices[2].y,
+            //     drawColor
+            // );
+            
+        else if(obj->projected->style == FillStyle::Fill)
+            graphics.fillTriangle(
+                obj->projected->vertices[0].x, obj->projected->vertices[0].y ,
+                obj->projected->vertices[1].x, obj->projected->vertices[1].y,
+                obj->projected->vertices[2].x,obj->projected->vertices[2].y,
+                drawColor
+            );
+    }
+    else if(obj->projected->shape == Rectangle){
+       
+        if(obj->projected->style == FillStyle::Outline){           
+         
+            for(int idx = 0; idx < obj->projected->numberOfVerticies; idx++){
+                auto nextIdx = (idx + 1) % obj->projected->numberOfVerticies;
+                graphics.drawLine(obj->projected->vertices[idx], obj->projected->vertices[nextIdx], obj->color);            
+            }
+            // graphics.drawRectangle(
+            //     obj->projected->vertices[0],
+            //     obj->projected->vertices[2],
+            //     drawColor
+            // );
+        }
+        else if(obj->projected->style == FillStyle::Fill)
+            graphics.fillRectangle(
+                obj->projected->vertices[0],
+                obj->projected->vertices[2],
+                drawColor
+            );
+    }
+
+    // else if(obj->projected->shape == Circle){
+    //     Circle2D* circle = static_cast<Circle2D*>(obj->projected);
+    //     //Serial.print("Drawing circle at ("); Serial.print(circle->vertices[0].x);  Serial.print(", "); Serial.print(circle->vertices[0].y); Serial.print(") with radius ");  Serial.println(circle->radius);
+    //     if(obj->projected->style == FillStyle::Outline)
+    //         graphics.drawCircle(
+    //             circle->vertices[0].x,
+    //             circle->vertices[0].y,
+    //             circle->radius,
+    //             drawColor
+    //         );
+            
+    //     else if(obj->projected->style == FillStyle::Fill)
+    //         graphics.fillCircle(
+    //             circle->vertices[0].x,
+    //             circle->vertices[0].y,
+    //             circle->radius,
+    //             drawColor
+    //         );
+    // }
+    // else if(obj->projected->shape == Oval){
+    //     Oval2D* oval = static_cast<Oval2D*>(obj->projected);
+    //     if(obj->projected->style == FillStyle::Outline)
+    //         graphics.drawOval(
+    //             oval->vertices[0].x,
+    //             oval->vertices[0].y,
+    //             oval->radiusX,
+    //             oval->radiusY,
+    //             drawColor
+    //         );
+            
+    //     else if(obj->projected->style == FillStyle::Fill)
+    //         graphics.fillOval(
+    //             oval->vertices[0].x,
+    //             oval->vertices[0].y,
+    //             oval->radiusX,
+    //             oval->radiusY,
+    //             drawColor
+    //         );
+    // }
+    // else if(obj->projected->shape == Arc){
+    //     Arc2D* arc = static_cast<Arc2D*>(obj->projected);
+    //     if(obj->projected->style == FillStyle::Outline)
+    //         graphics.drawArc(
+    //             arc->vertices[0].x,
+    //             arc->vertices[0].y,
+    //             arc->startDeg,
+    //             arc->endDeg,
+    //             arc->radius,
+    //             drawColor
+    //         );
+            
+    //     else if(obj->projected->style == FillStyle::Fill){
+    //     //    graphics.fillArc(
+    //     //         arc->vertices[0].x,
+    //     //         arc->vertices[0].y,
+    //     //         arc->startDeg,
+    //     //         arc->endDeg,
+    //     //         arc->radius,
+    //     //         obj->texture->colors[0]
+    //     //     );
+    //     }
+        
+    // }
+
+    if(obj->text){
+        // auto textWidth = strlen(obj->text) * graphics.settings.charWidth;
+        uint16_t textHeight = 0, textWidth = 0;
+        for(int i=0; i < obj->projected->numberOfVerticies; i++){
+            textWidth += obj->projected->vertices[i].x;
+            textHeight += obj->projected->vertices[i].y;
+        }
+        auto xpos = (textWidth / obj->projected->numberOfVerticies) - ((strlen(obj->text) * graphics.settings.charWidth) / 2);
+        auto ypos = (textHeight / obj->projected->numberOfVerticies) - graphics.settings.charHeight / 2;
+        graphics.drawText(xpos, ypos, obj->text, obj->color ^ 0xFF, obj->color,true);
+        //Serial.print("printing "); Serial.print(obj->text); Serial.print(" at ("); Serial.print(xpos);Serial.print(", "); Serial.print(ypos);;Serial.println(")");
+    }
+
+}
+
 
 void GPU::ClearScreen()
 {
@@ -441,24 +688,46 @@ void GPU::ClearScreen(uint8_t color){
     ClearObjects();
     
 }
-void GPU::Set2DObjects(ShapeList<GraphicsObject2D>* list)
+void GPU::Set2DObjects(ShapeList<Graphics2DObject>* list)
 {
     // guard
     if(list == nullptr){
         // just clear our internal list
-        if(_renderCanvas.shapeList){
-            _renderCanvas.shapeList->clear();
+        if(_renderCanvas2D.shapeList){
+            _renderCanvas2D.shapeList->clear();
         }
         return;
     }
 
     // move elements from external list into GPU's internal list so GPU owns them.
     // This prevents GPU from pointing into caller-owned memory that may be deleted.
-    if(!_renderCanvas.shapeList) _renderCanvas.shapeList = new ShapeList<GraphicsObject2D>();
+    if(!_renderCanvas2D.shapeList) _renderCanvas2D.shapeList = new ShapeList<Graphics2DObject>();
 
-    _renderCanvas.shapeList->clear();
+    _renderCanvas2D.shapeList->clear();
     for(auto &obj : *list){
-        _renderCanvas.shapeList->push_back(std::move(obj));
+        _renderCanvas2D.shapeList->push_back(std::move(obj));
+    }
+    list->clear();
+}
+
+void GPU::Set3DObjects(ShapeList<Graphics3DObject> *list)
+{
+     // guard
+    if(list == nullptr){
+        // just clear our internal list
+        if(_renderCanvas3D.shapeList){
+            _renderCanvas3D.shapeList->clear();
+        }
+        return;
+    }
+
+    // move elements from external list into GPU's internal list so GPU owns them.
+    // This prevents GPU from pointing into caller-owned memory that may be deleted.
+    if(!_renderCanvas3D.shapeList) _renderCanvas3D.shapeList = new ShapeList<Graphics3DObject>();
+
+    _renderCanvas3D.shapeList->clear();
+    for(auto &obj : *list){
+        _renderCanvas3D.shapeList->push_back(std::move(obj));
     }
     list->clear();
 }
@@ -468,9 +737,16 @@ void GPU::ClearObjects()
     _isBank1Initialized = false;
     _isBank2Initialized = false;
 
-    if (_renderCanvas.shapeList) {
-        if (_renderCanvas.shapeList->size() > 0) {
-            _renderCanvas.shapeList->clear();  // this runs each GraphicsObject2D dtor
+
+    if (_renderCanvas2D.shapeList) {
+        if (_renderCanvas3D.shapeList->size() > 0) {
+            _renderCanvas3D.shapeList->clear();  // this runs each Graphics2DObject dtor
+        }        
+    }
+
+    if (_renderCanvas3D.shapeList) {
+        if (_renderCanvas3D.shapeList->size() > 0) {
+            _renderCanvas3D.shapeList->clear();  // this runs each Graphics3DObject dtor
         }        
     }
 
@@ -483,3 +759,5 @@ void GPU::ClearObjects()
     #endif
 }
 #endif
+
+

@@ -53,7 +53,7 @@ struct MouseWheelArgs{
 class VGAMouse{
     public:
     VGAMouse()
-        :   _mouseAreaObject(new GraphicsObject2D( new Rectangle2D(_mouseLocation.x, _mouseLocation.y, CURSOR_SIZE,CURSOR_SIZE),new Texture2D(CURSOR_SIZE,CURSOR_SIZE*4,_mouseCursorBuffer)))
+        :   _mouseAreaObject(new Graphics2DObject( new Rectangle2D(_mouseLocation.x, _mouseLocation.y, CURSOR_SIZE,CURSOR_SIZE),new Texture2D(CURSOR_SIZE,CURSOR_SIZE*4,_mouseCursorBuffer)))
     {
         _initializedPs2 = false;
         _initializedUsb = false;
@@ -120,10 +120,10 @@ class VGAMouse{
     
     Point2D _mouseLocation, _previousLocationBank1, _previousLocationBank2;
     
-    GraphicsObject2D * _mouseAreaObject;
-    // GraphicsObject2D * _mouseAreaObjectBank1;
-    // GraphicsObject2D * _mouseAreaObjectBank2;
-    ShapeList<GraphicsObject2D> * _mouseShapes;
+    Graphics2DObject * _mouseAreaObject;
+    // Graphics2DObject * _mouseAreaObjectBank1;
+    // Graphics2DObject * _mouseAreaObjectBank2;
+    ShapeList<Graphics2DObject> * _mouseShapes;
     int _zoom = 8;
     char key = 0;
     

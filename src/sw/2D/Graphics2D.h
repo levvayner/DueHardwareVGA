@@ -2,10 +2,10 @@
 #include <ShapeList.h>
 class Graphics2D{
     public: 
-    //GraphicsObject2D* currentDrawObject = nullptr;
-    ShapeList<GraphicsObject2D>* shapeList = nullptr; 
+    //Graphics2DObject* currentDrawObject = nullptr;
+    ShapeList<Graphics2DObject>* shapeList = nullptr; 
     Graphics2D()
-    : shapeList(new ShapeList<GraphicsObject2D>()) {}
+    : shapeList(new ShapeList<Graphics2DObject>()) {}
 
     ~Graphics2D() {
         shapeList->clear();
